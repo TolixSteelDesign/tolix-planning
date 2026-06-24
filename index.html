@@ -7,6 +7,7 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#f8f7f4;--s:#fff;--b:#e5e2d9;--bl:#f0ede6;--t:#1a1917;--m:#6b6860;--h:#9c9a94;--g:#1d6f42;--gb:#e8f4ee;--r:#9b2626;--rb:#fceaea;--o:#9a4a0a;--ob:#fef0e4;--u:#1a4a7a;--rr:8px;--rl:12px}
@@ -23,14 +24,33 @@ td{padding:8px 12px;font-size:13px;border-top:1px solid var(--bl)}
 .stat{background:var(--s);border:1px solid var(--b);border-radius:var(--rr);padding:14px 16px}
 header{background:#1a1917;color:#fff;padding:0 20px;display:flex;align-items:center;gap:12px;height:50px;position:sticky;top:0;z-index:100}
 main{max-width:1100px;margin:0 auto;padding:20px 16px}
+.sync{font-size:11px;color:rgba(255,255,255,0.5);display:flex;align-items:center;gap:4px}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script>
 const e = React.createElement;
-const {useState,useCallback,useRef} = React;
+const {useState,useCallback,useRef,useEffect} = React;
 
+// ── Supabase ──────────────────────────────────────────────────
+const SB_URL = 'https://enswjvhvsapjnqexlgst.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVuc3dqdmh2c2Fwam5xZXhsZ3N0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMDE0MjYsImV4cCI6MjA5Nzg3NzQyNn0.jeZlcCEPSqfExO-lBpa2Br2OGOEt3sG6ul2cJMa-rqo';
+const sb = supabase.createClient(SB_URL, SB_KEY);
+
+async function chargerStatuts() {
+  const {data,error} = await sb.from('statuts').select('id,peint');
+  if(error){console.error(error);return {};}
+  const map={};
+  data.forEach(r=>map[r.id]=r.peint);
+  return map;
+}
+
+async function sauvegarderStatut(key, peint) {
+  await sb.from('statuts').upsert({id:key, peint, updated_at:new Date().toISOString()});
+}
+
+// ── Données ───────────────────────────────────────────────────
 const ECA_REF = {"EACAC-11474-C":1,"EACAC-11476-C":1,"EACAC-11478-C":1,"EACAC-11290-C":0.25,"EACAC-11291-C":0.25,"EACAC-11306-C":0.5,"EACAC-11305-C":0.5,"EACAC-11482-C":1,"OCHAC-12088-F":2,"ETBAC-12100-F":4,"ETBAC-12098-F":6,"ETBAC-12099-F":6,"ERAAC-12085-C":14,"ERAAC-10570-V":8,"ERAAC-10568-C":8,"ERAAC-10567-V":6,"ERAAC-10565-C":6,"ERAAC-10564-V":6,"ERAAC-10562-C":6,"ERAAC-10561-V":8,"ERAAC-10559-C":8,"ERAAC-12097-V":12,"ERAAC-12074-C":12,"OCHAC-10530-V":1,"OCHAC-11332-G":1,"OCHAC-10532-C":1,"OFOAC-10539-V":1,"OFOAC-11443-G":1,"OCHAC-10541-C":1,"OFOAC-10525-V":1,"OFOAC-10524-C":1,"ERAAC-12083-C":14,"ERAAC-12084-C":16,"ETBAC-10597-V":6,"ETBAC-10619-C":6,"ETBAC-10583-C":6,"ETBAC-10620-V":6,"ETBAC-10601-C":6,"ETBAC-10582-C":6,"ETBAC-10621-V":6,"ETBAC-10603-C":6,"ETBAC-10586-C":8,"ETBAC-10622-V":4,"ETBAC-10599-C":4,"ETBAC-10577-C":4,"ETBAC-10573-V":4,"ETBAC-10571-C":4,"ETBAC-11390-C":6,"ETBAC-11397-C":6,"OTAAC-10574-V":1,"OTAAC-10576-C":1,"OTAAC-11193-V":1,"OTAAC-11311-G":1,"OTAAC-11294-C":1,"OTAAC-11132-V":1,"OTAAC-11315-G":1,"OTAAC-11295-C":1,"OTAAC-11298-V":1,"OTAAC-11319-G":1,"OTAAC-11296-C":1,"OTAAC-11299-C":2,"OTAAC-11300-V":2,"OTAAC-11301-C":2,"OTAAC-11309-F":1,"OTAAC-11323-F":1,"OTAAC-11331-F":2,"ERAAC-10558-V":6,"ERAAC-10556-C":6,"ERAAC-10553-V":14,"ERAAC-10555-C":14,"ERAAC-10550-V":20,"ERAAC-10548-C":20,"ERAAC-10615-V":8,"ERAAC-10613-C":8,"ERAAC-10551-V":26,"ERAAC-10612-C":26,"ERAAC-08759-C":40,"ERAAC-08760-C":40,"ELUIN-11466-C":1,"ELUIN-11233-C":1,"EBNAC-11435-G":6,"EBNAC-12040-C":6,"EBNAC-11249-G":4,"EBNAC-12039-C":4,"EBNAC-12093-C":6,"EBNAC-11154-C":6,"OCHAC-10978-G":1,"OCHAC-12033-C":1,"OCHAC-10515-V":1,"OCHAC-10500-C":1,"OCHAC-10510-C":2,"OCHAC-11767-C":2,"OCHAC-12060-F":1,"OFOAC-10979-G":2,"OFOAC-12035-C":2,"OFOAC-12034-C":2,"OFOAC-12018-C":4,"OFOAC-12019-C":4,"OFOAC-12042-C":2,"OFOAC-10541-C":1,"ETBAC-12048-C":6,"ETBAC-12047-C":4,"ETBAC-12043-C":4,"ETBAC-12049-C":8,"ETBAC-12044-C":8,"ETBAC-12045-C":10,"ETBAC-12046-C":10,"ETAAC-12037-C":1,"ETBAC-11430-C":6,"ETBAC-11432-C":6,"ETBAC-10520-C":6,"ETBAC-12071-C":10,"ETBAC-12072-C":12,"ETBAC-10517-C":8,"ETBAC-10518-C":6,"ETBAC-10519-C":6,"OCHIN-11208-C":1,"OCHIN-00406-V":1,"ETBIN-11494-C":4,"ETBIN-11522-C":4,"OTAIN-11502-C":1,"OTAIN-11503-C":1,"OTAIN-11739-C":1,"OTAIN-11740-C":1,"ETBAC-12090-V":4,"ETBAC-11490-C":4,"ETBAC-11493-V":4,"ETBAC-11492-C":4,"ETBAC-11485-C":2,"ETBAC-11487-C":2,"ETBAC-12069-C":6,"ETBAC-12070-C":6,"ETBAC-12094-V":6,"ETBAC-11460-C":6,"ETBAC-12095-V":6,"ETBAC-10522-C":6,"ETBAC-10521-C":6,"ETAAC-05636-C":2,"ETAAC-05463-C":2,"ETAAC-05687-V":2,"ETBAC-12136-F":10,"ETBAC-10898-C":10,"ETBAC-10583-V":6};
 const PAL=['#1D9E75','#185FA5','#BA7517','#993C1D','#534AB7','#3B6D11','#A32D2D','#0F6E56','#854F0B','#3C3489','#1a6b8a','#7a3b7a','#5a6800'];
 const EXCL=['EMBALLAGE','PALETTE','ECHANTILLON','NUANCIER','KIT EMBALLAGE'];
@@ -89,15 +109,9 @@ function lisser(lignes,nbJ){
   });
   const groupes=Object.values(map).sort((a,b)=>b.eca-a.eca);
   const jours=Array.from({length:nbJ},(_,i)=>({jour:i+1,eca:0,groupes:[]}));
-  for(const g of groupes){
-    if(g.eca===0)continue;
-    const j=jours.reduce((m,x)=>x.eca<m.eca?x:m);
-    j.groupes.push(g);j.eca+=g.eca;
-  }
+  for(const g of groupes){if(g.eca===0)continue;const j=jours.reduce((m,x)=>x.eca<m.eca?x:m);j.groupes.push(g);j.eca+=g.eca;}
   return jours;
 }
-
-// ── Composants ────────────────────────────────────────────────
 
 function StatCard({label,value,color}){
   return e('div',{className:'stat'},
@@ -324,7 +338,13 @@ function App(){
   const [vue,setVue]=useState('planning');
   const [detail,setDetail]=useState(null);
   const [nomFich,setNomFich]=useState('');
+  const [sync,setSync]=useState('');
   const fileRef=useRef();
+
+  // Charger les statuts depuis Supabase au démarrage
+  useEffect(()=>{
+    chargerStatuts().then(s=>{setStatuts(s);setSync('✓ Synchronisé');});
+  },[]);
 
   const loadFile=useCallback(file=>{
     if(!file)return;
@@ -341,7 +361,16 @@ function App(){
     reader.readAsArrayBuffer(file);
   },[]);
 
-  const toggle=useCallback(key=>setStatuts(p=>({...p,[key]:!p[key]})),[]);
+  const toggle=useCallback(key=>{
+    setStatuts(prev=>{
+      const newVal=!prev[key];
+      // Sauvegarder dans Supabase
+      setSync('⏳ Sauvegarde...');
+      sauvegarderStatut(key,newVal).then(()=>setSync('✓ Sauvegardé'));
+      return {...prev,[key]:newVal};
+    });
+  },[]);
+
   const TABS=[{id:'planning',l:'Planning'},{id:'charge',l:'Charge ECA'},{id:'reporting',l:'Reporting'}];
 
   return e('div',null,
@@ -350,7 +379,8 @@ function App(){
       lignes.length>0&&e('nav',{style:{display:'flex',gap:2,marginLeft:16}},
         ...TABS.map(t=>e('button',{key:t.id,onClick:()=>{setVue(t.id);setDetail(null);},style:{background:vue===t.id&&!detail?'rgba(255,255,255,0.15)':'transparent',border:'none',color:'#fff',opacity:vue===t.id&&!detail?1:0.65,padding:'5px 12px',borderRadius:6,fontSize:13}},t.l))
       ),
-      e('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:8}},
+      e('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:12}},
+        sync&&e('span',{className:'sync'},sync),
         nomFich&&e('span',{style:{fontSize:11,color:'rgba(255,255,255,0.45)'}},nomFich),
         e('label',{style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',padding:'4px 12px',borderRadius:6,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:6}},
           '📂 '+(lignes.length>0?'Nouveau fichier':'Importer ERP'),

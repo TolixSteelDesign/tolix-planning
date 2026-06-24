@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Planning Peinture · Tolix</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/xlsx/dist/xlsx.full.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#f8f7f4;--surface:#fff;--border:#e5e2d9;--border-light:#f0ede6;
+  --text:#1a1917;--muted:#6b6860;--hint:#9c9a94;
+  --green:#1d6f42;--green-bg:#e8f4ee;--red:#9b2626;--red-bg:#fceaea;
+  --orange:#9a4a0a;--orange-bg:#fef0e4;--blue:#1a4a7a;--blue-bg:#e8f0fa;
+  --r:8px;--rl:12px;
+}
+body{font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;font-size:13px;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:6px 14px;border-radius:var(--r);transition:background .15s;display:inline-flex;align-items:center;gap:6px}
+button:hover{background:var(--bg)}
+button.active,button.primary{background:var(--text);color:#fff;border-color:var(--text)}
+input,select{font-family:inherit;font-size:13px;border:1px solid var(--border);background:var(--surface);color:var(--text);padding:6px 10px;border-radius:var(--r);outline:none}
+input:focus,select:focus{border-color:#aaa}
+table{width:100%;border-collapse:collapse}
+th{font-weight:500;color:var(--muted);text-align:left;padding:8px 12px;font-size:12px;background:#fafaf8}
+td{padding:8px 12px;font-size:13px;border-top:1px solid var(--border-light)}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:99px;font-size:11px;font-weight:500}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px}
+.stat .lbl{font-size:11px;color:var(--hint);margin-bottom:4px}
+.stat .val{font-size:20px;font-weight:600}
+header{background:#1a1917;color:#fff;padding:0 20px;display:flex;align-items:center;gap:12px;height:50px;position:sticky;top:0;z-index:100}
+main{max-width:1100px;margin:0 auto;padding:20px 16px}
+.drop-zone{border:2px dashed #d0cdc6;border-radius:var(--rl);padding:3rem;text-align:center;background:#faf9f7;cursor:pointer;transition:all .2s}
+.drop-zone:hover{border-color:#888;background:#f0ede6}
+.bar-wrap{height:8px;background:#f0ede6;border-radius:99px;overflow:hidden;margin:4px 0}
+.bar-fill{height:100%;border-radius:99px;transition:width .3s}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useCallback,useRef} = React;
+
+// ── Référentiel ECA Tolix ──────────────────────────────────────
+const ECA_REF = {"EACAC-11474-C":1,"EACAC-11476-C":1,"EACAC-11478-C":1,"EACAC-11290-C":0.25,"EACAC-11291-C":0.25,"EACAC-11306-C":0.5,"EACAC-11305-C":0.5,"EACAC-11482-C":1,"OCHAC-12088-F":2,"ETBAC-12100-F":4,"ETBAC-12098-F":6,"ETBAC-12099-F":6,"ERAAC-12085-C":14,"ERAAC-10570-V":8,"ERAAC-10568-C":8,"ERAAC-10567-V":6,"ERAAC-10565-C":6,"ERAAC-10564-V":6,"ERAAC-10562-C":6,"ERAAC-10561-V":8,"ERAAC-10559-C":8,"ERAAC-12097-V":12,"ERAAC-12074-C":12,"OCHAC-10530-V":1,"OCHAC-11332-G":1,"OCHAC-10532-C":1,"OFOAC-10539-V":1,"OFOAC-11443-G":1,"OCHAC-10541-C":1,"OFOAC-10525-V":1,"OFOAC-10524-C":1,"ERAAC-12083-C":14,"ERAAC-12084-C":16,"ETBAC-10597-V":6,"ETBAC-10619-C":6,"ETBAC-10583-C":6,"ETBAC-10620-V":6,"ETBAC-10601-C":6,"ETBAC-10582-C":6,"ETBAC-10621-V":6,"ETBAC-10603-C":6,"ETBAC-10586-C":8,"ETBAC-10622-V":4,"ETBAC-10599-C":4,"ETBAC-10577-C":4,"ETBAC-10573-V":4,"ETBAC-10571-C":4,"ETBAC-11390-C":6,"ETBAC-11397-C":6,"OTAAC-10574-V":1,"OTAAC-10576-C":1,"OTAAC-11193-V":1,"OTAAC-11311-G":1,"OTAAC-11294-C":1,"OTAAC-11132-V":1,"OTAAC-11315-G":1,"OTAAC-11295-C":1,"OTAAC-11298-V":1,"OTAAC-11319-G":1,"OTAAC-11296-C":1,"OTAAC-11299-C":2,"OTAAC-11300-V":2,"OTAAC-11301-C":2,"OTAAC-11309-F":1,"OTAAC-11323-F":1,"OTAAC-11331-F":2,"ERAAC-10558-V":6,"ERAAC-10556-C":6,"ERAAC-10553-V":14,"ERAAC-10555-C":14,"ERAAC-10550-V":20,"ERAAC-10548-C":20,"ERAAC-10615-V":8,"ERAAC-10613-C":8,"ERAAC-10551-V":26,"ERAAC-10612-C":26,"ERAAC-08759-C":40,"ERAAC-08760-C":40,"ELUIN-11466-C":1,"ELUIN-11233-C":1,"EBNAC-11435-G":6,"EBNAC-12040-C":6,"EBNAC-11249-G":4,"EBNAC-12039-C":4,"EBNAC-12093-C":6,"EBNAC-11154-C":6,"OCHAC-10978-G":1,"OCHAC-12033-C":1,"OCHAC-10515-V":1,"OCHAC-10500-C":1,"OCHAC-10510-C":2,"OCHAC-11767-C":2,"OCHAC-12060-F":1,"OFOAC-10979-G":2,"OFOAC-12035-C":2,"OFOAC-12034-C":2,"OFOAC-12018-C":4,"OFOAC-12019-C":4,"OFOAC-12042-C":2,"OFOAC-10541-C":1,"ETBAC-12048-C":6,"ETBAC-12047-C":4,"ETBAC-12043-C":4,"ETBAC-12049-C":8,"ETBAC-12044-C":8,"ETBAC-12045-C":10,"ETBAC-12046-C":10,"ETAAC-12037-C":1,"ETBAC-11430-C":6,"ETBAC-11432-C":6,"ETBAC-10520-C":6,"ETBAC-12071-C":10,"ETBAC-12072-C":12,"ETBAC-10517-C":8,"ETBAC-10518-C":6,"ETBAC-10519-C":6,"OCHIN-11208-C":1,"OCHIN-00406-V":1,"ETBIN-11494-C":4,"ETBIN-11522-C":4,"OTAIN-11502-C":1,"OTAIN-11503-C":1,"OTAIN-11739-C":1,"OTAIN-11740-C":1,"ETBAC-12090-V":4,"ETBAC-11490-C":4,"ETBAC-11493-V":4,"ETBAC-11492-C":4,"ETBAC-11485-C":2,"ETBAC-11487-C":2,"ETBAC-12069-C":6,"ETBAC-12070-C":6,"ETBAC-12094-V":6,"ETBAC-11460-C":6,"ETBAC-12095-V":6,"ETBAC-10522-C":6,"ETBAC-10521-C":6,"ETAAC-05636-C":2,"ETAAC-05463-C":2,"ETAAC-05687-V":2,"ETBAC-12136-F":10,"ETBAC-10898-C":10,"ETBAC-10583-V":6};
+const PALETTE = ['#1D9E75','#185FA5','#BA7517','#993C1D','#534AB7','#3B6D11','#A32D2D','#0F6E56','#854F0B','#3C3489','#1a6b8a','#7a3b7a','#5a6800'];
+const EXCL = ['EMBALLAGE','PALETTE','ECHANTILLON','NUANCIER','KIT EMBALLAGE'];
+
+function getECA(ref){ return ref ? (ECA_REF[ref.substring(0,13)] ?? 1) : 1; }
+function fmt(n){ const x=typeof n==='string'?parseFloat(n):n; return Number.isInteger(x)?String(x):x.toFixed(1); }
+
+function parseERP(rows){
+  const hdrs = rows[0].map(h=>String(h||'').trim().toUpperCase());
+  const col = k => hdrs.indexOf(k);
+  const idx = {
+    dateliv: col('DATELIV'), numeroc: col('NUMEROC'), nom: col('NOM'),
+    design: col('DESIGN'), qte: col('QTE'), qtereste: col('QTERESTE'), ref: col('REFERENCE')
+  };
+  const lignes = [];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i];
+    const design=String(r[idx.design]||'').trim();
+    const qCol = idx.qtereste>=0 ? idx.qtereste : idx.qte;
+    const qte = parseFloat(r[qCol])||0;
+    if(qte<=0) continue;
+    if(EXCL.some(e=>design.toUpperCase().includes(e))) continue;
+    const pos = design.lastIndexOf('/ ');
+    const couleur = pos>=0 ? design.slice(pos+2).trim() : '';
+    const produit = pos>0 ? design.slice(0,pos).trim() : design;
+    if(!couleur) continue;
+    let dateLiv='';
+    const rawLiv = r[idx.dateliv];
+    if(rawLiv){
+      if(typeof rawLiv==='number'){
+        const d=new Date(Math.round((rawLiv-25569)*86400*1000));
+        dateLiv=`${String(d.getUTCDate()).padStart(2,'0')}/${String(d.getUTCMonth()+1).padStart(2,'0')}/${d.getUTCFullYear()}`;
+      } else dateLiv=String(rawLiv).trim();
+    }
+    let semaine='';
+    if(dateLiv.length>=8){
+      const p=dateLiv.split('/');
+      if(p.length===3){
+        const liv=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+        const mp=new Date(liv.getTime()-28*86400*1000);
+        const d2=new Date(mp); d2.setHours(0,0,0,0);
+        d2.setDate(d2.getDate()+3-((d2.getDay()+6)%7));
+        const w1=new Date(d2.getFullYear(),0,4);
+        const wn=1+Math.round(((d2-w1)/86400000-3+((w1.getDay()+6)%7))/7);
+        semaine=`S${String(wn).padStart(2,'0')}-${String(d2.getFullYear()).slice(-2)}`;
+      }
+    }
+    lignes.push({id:String(r[idx.numeroc]||'').trim(),client:String(r[idx.nom]||'').trim().substring(0,40),ref:String(r[idx.ref]||'').trim(),design:produit.substring(0,60),couleur:couleur.substring(0,40),qte:Math.round(qte),dateLiv,semaine,peint:false});
+  }
+  return lignes;
+}
+
+function lisser(lignes,nbJours){
+  const map={};
+  lignes.forEach(l=>{
+    if(!map[l.couleur]) map[l.couleur]={couleur:l.couleur,lignes:[],eca:0};
+    map[l.couleur].lignes.push(l);
+    map[l.couleur].eca+=getECA(l.ref)*l.qte;
+  });
+  const groupes=Object.values(map).sort((a,b)=>b.eca-a.eca);
+  const jours=Array.from({length:nbJours},(_,i)=>({jour:i+1,eca:0,groupes:[]}));
+  for(const g of groupes){
+    if(g.eca===0) continue;
+    const j=jours.reduce((m,x)=>x.eca<m.eca?x:m);
+    j.groupes.push(g); j.eca+=g.eca;
+  }
+  return jours;
+}
+
+// ── Vue Planning ───────────────────────────────────────────────
+function VuePlanning({lignes,statuts,onToggle}){
+  const [sem,setSem]=useState('');
+  const [nbJ,setNbJ]=useState(5);
+  const [maxECA,setMaxECA]=useState(250);
+  const sems=[...new Set(lignes.map(l=>l.semaine))].filter(Boolean).sort();
+  const semCur=sem||sems[0]||'';
+  const ligs=lignes.filter(l=>l.semaine===semCur).map(l=>({...l,peint:statuts[`${l.id}||${l.ref}`]||false}));
+  const totECA=ligs.reduce((s,l)=>s+getECA(l.ref)*l.qte,0);
+  const ecaJ=nbJ>0?totECA/nbJ:0;
+  const dep=ecaJ>maxECA;
+  const jours=lisser(ligs,nbJ);
+  const allC=[...new Set(lignes.map(l=>l.couleur))].sort();
+  const cMap={}; allC.forEach((c,i)=>cMap[c]=PALETTE[i%PALETTE.length]);
+
+  return <div>
+    <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',marginBottom:16}}>
+      <select value={semCur} onChange={e=>setSem(e.target.value)}>
+        {sems.map(s=><option key={s} value={s}>Semaine {s}</option>)}
+      </select>
+      <span style={{fontSize:12,color:'var(--hint)'}}>Jours :</span>
+      {[1,2,3,4,5,6].map(n=><button key={n} className={nbJ===n?'active':''} onClick={()=>setNbJ(n)} style={{padding:'5px 10px',minWidth:36}}>{n}</button>)}
+      <span style={{fontSize:12,color:'var(--hint)',marginLeft:8}}>Max ECA/j :</span>
+      <input type="number" value={maxECA} onChange={e=>setMaxECA(+e.target.value)} style={{width:70}} min={50} max={600} step={10}/>
+    </div>
+
+    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:16}}>
+      {[{l:'Lignes',v:ligs.length},{l:'Pièces',v:ligs.reduce((s,l)=>s+l.qte,0)},{l:'ECA total',v:fmt(totECA)},{l:'ECA/jour',v:fmt(ecaJ),c:dep?'var(--red)':'var(--green)'}].map(s=>
+        <div key={s.l} className="stat"><div className="lbl">{s.l}</div><div className="val" style={s.c?{color:s.c}:{}}>{s.v}</div></div>
+      )}
+    </div>
+
+    {ligs.length>0 && <div style={{marginBottom:16}}>
+      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:'var(--hint)',marginBottom:4}}>
+        <span>Charge ECA / jour</span>
+        <span>{fmt(ecaJ)} / {maxECA} · {Math.round(ecaJ/maxECA*100)}%{dep?' ⚠':''}</span>
+      </div>
+      <div className="bar-wrap"><div className="bar-fill" style={{width:`${Math.min(100,ecaJ/maxECA*100)}%`,background:dep?'#c0392b':ecaJ/maxECA>0.85?'#e67e22':'#1d9e75'}}/></div>
+    </div>}
+
+    {ligs.length===0
+      ? <div style={{textAlign:'center',padding:'3rem',color:'var(--hint)',border:'2px dashed var(--border)',borderRadius:12}}>Aucune ligne pour cette semaine</div>
+      : jours.map(j=>{
+          const over=j.eca>maxECA; const pct=Math.min(100,j.eca/maxECA*100);
+          const bc=over?'#c0392b':j.eca/maxECA>0.85?'#e67e22':'#1d9e75';
+          return <div key={j.jour} className="card" style={{marginBottom:16}}>
+            <div style={{padding:'10px 16px',background:'#fafaf8',borderBottom:'1px solid var(--border-light)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span style={{fontWeight:600,fontSize:15}}>Jour {j.jour}</span>
+              <div style={{display:'flex',alignItems:'center',gap:12}}>
+                <div style={{width:120,height:6,background:'#e5e2d9',borderRadius:99,overflow:'hidden'}}>
+                  <div style={{height:'100%',width:`${pct}%`,background:bc,borderRadius:99}}/>
+                </div>
+                <span style={{fontSize:13,fontWeight:500,color:over?'var(--red)':bc}}>{fmt(j.eca)} ECA {over?'⚠':''}</span>
+              </div>
+            </div>
+            {j.groupes.sort((a,b)=>a.couleur.localeCompare(b.couleur)).map(g=>{
+              const acc=cMap[g.couleur]; const np=g.lignes.filter(l=>l.peint).length;
+              return <div key={g.couleur}>
+                <div style={{padding:'8px 16px',background:'#fafaf8',borderTop:'1px solid var(--border-light)',borderBottom:'1px solid var(--border-light)',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <div style={{width:10,height:10,borderRadius:'50%',background:acc}}/>
+                    <span style={{fontWeight:500,fontSize:13}}>{g.couleur}</span>
+                    <span style={{fontSize:11,color:'var(--hint)'}}>{np}/{g.lignes.length} peintes</span>
+                  </div>
+                  <span style={{fontSize:12,color:'var(--hint)'}}>{fmt(g.eca)} ECA</span>
+                </div>
+                <table>
+                  <thead><tr><th style={{width:'32%'}}>Désignation</th><th style={{width:'22%'}}>Client</th><th style={{width:'8%',textAlign:'center'}}>Qté</th><th style={{width:'10%',textAlign:'center'}}>ECA</th><th style={{width:'16%',textAlign:'center'}}>Date liv.</th><th style={{width:'12%',textAlign:'center'}}>Peint</th></tr></thead>
+                  <tbody>{g.lignes.map((l,li)=>{
+                    const key=`${l.id}||${l.ref}`; const eu=getECA(l.ref);
+                    return <tr key={li} style={{background:l.peint?'#f0faf4':li%2===0?'#fff':'#fafaf8'}}>
+                      <td style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0}} title={l.design}>{l.design}</td>
+                      <td style={{color:'var(--muted)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0}} title={l.client}>{l.client}</td>
+                      <td style={{textAlign:'center',fontWeight:500}}>{l.qte}</td>
+                      <td style={{textAlign:'center',color:'var(--hint)'}}>{fmt(eu*l.qte)}</td>
+                      <td style={{textAlign:'center',color:'var(--muted)',fontSize:12}}>{l.dateLiv}</td>
+                      <td style={{textAlign:'center'}}>
+                        <button onClick={()=>onToggle(key)} style={{padding:'2px 10px',fontSize:11,fontWeight:500,borderRadius:99,background:l.peint?'#e8f4ee':'#fceaea',color:l.peint?'var(--green)':'var(--red)',border:`1px solid ${l.peint?'#b8ddc8':'#f0c0c0'}`}}>
+                          {l.peint?'✓ OK':'— NOK'}
+                        </button>
+                      </td>
+                    </tr>;
+                  })}</tbody>
+                </table>
+              </div>;
+            })}
+          </div>;
+        })
+    }
+  </div>;
+}
+
+// ── Vue Charge ECA ─────────────────────────────────────────────
+function VueCharge({lignes,onSem}){
+  const [maxECA,setMaxECA]=useState(250);
+  const [nbJ,setNbJ]=useState(5);
+  const sems=[...new Set(lignes.map(l=>l.semaine))].filter(Boolean).sort();
+  const ecaBySem={};
+  sems.forEach(s=>{ ecaBySem[s]=lignes.filter(l=>l.semaine===s).reduce((t,l)=>t+getECA(l.ref)*l.qte,0); });
+  const maxV=Math.max(...Object.values(ecaBySem),1);
+  const cap=maxECA*nbJ;
+
+  return <div>
+    <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',marginBottom:20}}>
+      <span style={{fontSize:12,color:'var(--hint)'}}>Jours / sem :</span>
+      {[1,2,3,4,5,6].map(n=><button key={n} className={nbJ===n?'active':''} onClick={()=>setNbJ(n)} style={{padding:'5px 10px',minWidth:36}}>{n}</button>)}
+      <span style={{fontSize:12,color:'var(--hint)',marginLeft:8}}>Max ECA/j :</span>
+      <input type="number" value={maxECA} onChange={e=>setMaxECA(+e.target.value)} style={{width:70}} min={50} max={600} step={10}/>
+      <span style={{fontSize:12,color:'var(--hint)'}}>→ Capacité : {cap} ECA/sem</span>
+    </div>
+    <div className="card" style={{padding:'20px'}}>
+      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+        {sems.map(s=>{
+          const eca=ecaBySem[s]; const over=eca>cap; const pct=Math.round(eca/maxV*100);
+          const col=over?'#c0392b':eca>cap*0.85?'#e67e22':'#1d9e75';
+          return <div key={s} style={{display:'flex',alignItems:'center',gap:12}}>
+            <span style={{fontSize:12,color:'var(--muted)',width:64,flexShrink:0}}>{s}</span>
+            <div style={{flex:1,height:22,background:'#f0ede6',borderRadius:4,overflow:'hidden',cursor:'pointer'}} onClick={()=>onSem(s)}>
+              <div style={{height:'100%',width:`${pct}%`,background:col,borderRadius:4,display:'flex',alignItems:'center',paddingLeft:8}}>
+                {pct>18 && <span style={{fontSize:11,color:'#fff',fontWeight:500}}>{fmt(eca)} ECA</span>}
+              </div>
+            </div>
+            {pct<=18 && <span style={{fontSize:11,color:'var(--hint)',minWidth:40}}>{fmt(eca)}</span>}
+            {over && <span style={{fontSize:11,color:'var(--red)',flexShrink:0}}>⚠ dépasse</span>}
+          </div>;
+        })}
+      </div>
+      <p style={{marginTop:16,fontSize:11,color:'var(--hint)'}}>Cliquez sur une barre pour voir le planning de la semaine</p>
+    </div>
+  </div>;
+}
+
+// ── Vue Reporting ──────────────────────────────────────────────
+function VueReporting({lignes,statuts,onToggle,onCommande}){
+  const byCde={};
+  lignes.forEach(l=>{
+    const k=`${l.id}||${l.ref}`; const peint=statuts[k]||false;
+    if(!byCde[l.id]) byCde[l.id]={id:l.id,client:l.client,dateLiv:l.dateLiv,lignes:[],peintes:0};
+    byCde[l.id].lignes.push({...l,peint});
+    if(peint) byCde[l.id].peintes++;
+  });
+  const cmds=Object.values(byCde).sort((a,b)=>{
+    const f=s=>{const p=s.split('/');return p.length===3?`${p[2]}${p[1]}${p[0]}`:'99999999'};
+    return f(a.dateLiv).localeCompare(f(b.dateLiv));
+  });
+  return <div className="card">
+    <table>
+      <thead><tr><th style={{width:'12%'}}>N° cde</th><th style={{width:'28%'}}>Client</th><th style={{width:'14%',textAlign:'center'}}>Date liv.</th><th style={{width:'20%',textAlign:'center'}}>Avancement</th><th style={{width:'12%',textAlign:'center'}}>Lignes</th><th style={{width:'14%',textAlign:'center'}}>Statut</th></tr></thead>
+      <tbody>{cmds.map((cmd,i)=>{
+        const pct=Math.round(cmd.peintes/cmd.lignes.length*100);
+        const [bg,col,lbl]=pct===100?['#e8f4ee','var(--green)','Terminé']:pct>0?['#fef0e4','var(--orange)','En cours']:['#fceaea','var(--red)','En attente'];
+        return <tr key={cmd.id} style={{background:i%2===0?'#fff':'#fafaf8'}}>
+          <td><button onClick={()=>onCommande(cmd.id)} style={{background:'none',border:'none',padding:0,color:'var(--blue)',textDecoration:'underline',fontWeight:500,cursor:'pointer',fontSize:13}}>{cmd.id}</button></td>
+          <td style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0}} title={cmd.client}>{cmd.client}</td>
+          <td style={{textAlign:'center',fontSize:12,color:'var(--muted)'}}>{cmd.dateLiv}</td>
+          <td style={{textAlign:'center'}}>
+            <div style={{height:5,background:'#e5e2d9',borderRadius:99,overflow:'hidden',width:80,margin:'0 auto 3px'}}>
+              <div style={{height:'100%',width:`${pct}%`,background:col,borderRadius:99}}/>
+            </div>
+            <span style={{fontSize:11,color:'var(--hint)'}}>{pct}%</span>
+          </td>
+          <td style={{textAlign:'center',color:'var(--muted)'}}>{cmd.peintes}/{cmd.lignes.length}</td>
+          <td style={{textAlign:'center'}}><span className="badge" style={{background:bg,color:col}}>{lbl}</span></td>
+        </tr>;
+      })}</tbody>
+    </table>
+  </div>;
+}
+
+// ── Vue Détail commande ────────────────────────────────────────
+function VueDetail({cmdId,lignes,statuts,onToggle,onBack}){
+  const ligs=lignes.filter(l=>l.id===cmdId).map(l=>({...l,peint:statuts[`${l.id}||${l.ref}`]||false}));
+  const client=ligs[0]?.client||'';
+  const np=ligs.filter(l=>l.peint).length;
+  const pct=ligs.length>0?Math.round(np/ligs.length*100):0;
+  const [bg,col,lbl]=pct===100?['#e8f4ee','var(--green)','Terminé']:pct>0?['#fef0e4','var(--orange)','En cours']:['#fceaea','var(--red)','En attente'];
+  return <div>
+    <div style={{display:'flex',alignItems:'center',gap:12,marginBottom:20}}>
+      <button onClick={onBack}>← Retour</button>
+      <div style={{flex:1}}>
+        <h2 style={{fontSize:18,fontWeight:700}}>Commande {cmdId}</h2>
+        <p style={{fontSize:12,color:'var(--hint)'}}>{client}</p>
+      </div>
+      <span className="badge" style={{background:bg,color:col,fontSize:13,padding:'4px 12px'}}>{lbl} · {np}/{ligs.length} · {pct}%</span>
+    </div>
+    <div className="card">
+      <table>
+        <thead><tr><th style={{width:'30%'}}>Désignation</th><th style={{width:'22%'}}>Couleur</th><th style={{width:'8%',textAlign:'center'}}>Qté</th><th style={{width:'10%',textAlign:'center'}}>ECA</th><th style={{width:'12%',textAlign:'center'}}>Semaine</th><th style={{width:'10%',textAlign:'center'}}>Date liv.</th><th style={{width:'8%',textAlign:'center'}}>Statut</th></tr></thead>
+        <tbody>{ligs.map((l,i)=>{
+          const key=`${l.id}||${l.ref}`; const eu=getECA(l.ref);
+          return <tr key={i} style={{background:l.peint?'#f0faf4':i%2===0?'#fff':'#fafaf8'}}>
+            <td style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0}} title={l.design}>{l.design}</td>
+            <td style={{color:'var(--muted)',fontSize:12}}>{l.couleur}</td>
+            <td style={{textAlign:'center',fontWeight:500}}>{l.qte}</td>
+            <td style={{textAlign:'center',color:'var(--hint)'}}>{fmt(eu*l.qte)}</td>
+            <td style={{textAlign:'center',fontSize:12,color:'var(--muted)'}}>{l.semaine}</td>
+            <td style={{textAlign:'center',fontSize:12,color:'var(--muted)'}}>{l.dateLiv}</td>
+            <td style={{textAlign:'center'}}>
+              <button onClick={()=>onToggle(key)} style={{padding:'2px 8px',fontSize:11,fontWeight:500,borderRadius:99,background:l.peint?'#e8f4ee':'#fceaea',color:l.peint?'var(--green)':'var(--red)',border:`1px solid ${l.peint?'#b8ddc8':'#f0c0c0'}`}}>
+                {l.peint?'✓ OK':'NOK'}
+              </button>
+            </td>
+          </tr>;
+        })}</tbody>
+      </table>
+    </div>
+  </div>;
+}
+
+// ── App ────────────────────────────────────────────────────────
+function App(){
+  const [lignes,setLignes]=useState([]);
+  const [statuts,setStatuts]=useState({});
+  const [vue,setVue]=useState('planning');
+  const [semPlan,setSemPlan]=useState('');
+  const [detail,setDetail]=useState(null);
+  const [nomFich,setNomFich]=useState('');
+  const fileRef=useRef();
+
+  const loadFile=useCallback(file=>{
+    if(!file) return;
+    setNomFich(file.name);
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const wb=XLSX.read(e.target.result,{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,raw:true});
+      const parsed=parseERP(rows);
+      setLignes(parsed);
+      const sems=[...new Set(parsed.map(l=>l.semaine))].filter(Boolean).sort();
+      setSemPlan(sems[0]||'');
+      setVue('planning'); setDetail(null);
+    };
+    reader.readAsArrayBuffer(file);
+  },[]);
+
+  const toggle=useCallback(key=>setStatuts(p=>({...p,[key]:!p[key]})),[]);
+
+  const TABS=[{id:'planning',l:'Planning'},{id:'charge',l:'Charge ECA'},{id:'reporting',l:'Reporting'}];
+
+  return <>
+    <header>
+      <span style={{fontSize:15,fontWeight:700,letterSpacing:'0.02em'}}>TOLIX · Peinture</span>
+      {lignes.length>0 && <nav style={{display:'flex',gap:2,marginLeft:16}}>
+        {TABS.map(t=><button key={t.id} onClick={()=>{setVue(t.id);setDetail(null);}} style={{background:vue===t.id&&!detail?'rgba(255,255,255,0.15)':'transparent',border:'none',color:'#fff',opacity:vue===t.id&&!detail?1:0.65,padding:'5px 12px',borderRadius:6,fontSize:13}}>{t.l}</button>)}
+      </nav>}
+      <div style={{marginLeft:'auto',display:'flex',alignItems:'center',gap:8}}>
+        {nomFich && <span style={{fontSize:11,color:'rgba(255,255,255,0.45)'}}>{nomFich}</span>}
+        <label style={{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',padding:'4px 12px',borderRadius:6,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:6}}>
+          📂 {lignes.length>0?'Nouveau fichier':'Importer ERP'}
+          <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{display:'none'}} onChange={e=>loadFile(e.target.files[0])}/>
+        </label>
+      </div>
+    </header>
+
+    <main>
+      {lignes.length===0
+        ? <div>
+            <div style={{textAlign:'center',paddingTop:40,marginBottom:32}}>
+              <div style={{fontSize:28,fontWeight:700,marginBottom:8}}>Planning peinture · Tolix</div>
+              <p style={{color:'var(--muted)'}}>Importez votre export ERP Codial pour démarrer</p>
+            </div>
+            <div style={{maxWidth:480,margin:'0 auto',border:'2px dashed #d0cdc6',borderRadius:12,padding:'3rem',textAlign:'center',background:'#faf9f7',cursor:'pointer'}} onClick={()=>fileRef.current?.click()}>
+              <div style={{fontSize:40,marginBottom:12}}>📂</div>
+              <p style={{fontWeight:500,marginBottom:6}}>Cliquez pour sélectionner votre export ERP</p>
+              <p style={{fontSize:12,color:'var(--hint)'}}>Fichiers .xlsx ou .xls acceptés</p>
+            </div>
+          </div>
+        : detail
+          ? <VueDetail cmdId={detail} lignes={lignes} statuts={statuts} onToggle={toggle} onBack={()=>setDetail(null)}/>
+          : vue==='planning'
+            ? <VuePlanning lignes={lignes} statuts={statuts} onToggle={toggle}/>
+            : vue==='charge'
+              ? <VueCharge lignes={lignes} onSem={s=>{setSemPlan(s);setVue('planning');}}/>
+              : <VueReporting lignes={lignes} statuts={statuts} onToggle={toggle} onCommande={id=>setDetail(id)}/>
+      }
+    </main>
+  </>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

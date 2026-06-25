@@ -8,6 +8,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{--bg:#f8f7f4;--s:#fff;--b:#e5e2d9;--bl:#f0ede6;--t:#1a1917;--m:#6b6860;--h:#9c9a94;--g:#1d6f42;--r:#9b2626;--o:#9a4a0a;--u:#1a4a7a;--rr:8px;--rl:12px}
@@ -47,7 +48,7 @@ async function chargerLignes(){
   const row=data[0];
   try{
     const parsed=typeof row.data==='string'?JSON.parse(row.data):row.data;
-    return{data:parsed,fichier:row.fichier};
+    return{data:parsed,fichier:row.fichier,import_date:row.import_date};
   }catch(err){console.error('parse error:',err);return null;}
 }
 async function sauvegarderLignes(lignes,fichier){
@@ -92,11 +93,53 @@ function lisser(lignes,nbJ){
 
 function SC({label,value,color}){return e('div',{className:'stat'},e('div',{style:{fontSize:11,color:'var(--h)',marginBottom:4}},label),e('div',{style:{fontSize:20,fontWeight:600,color:color||'var(--t)'}},value));}
 
-function VuePlanning({lignes,statuts,onToggle}){
+function exportPDF(jours,semaine,maxECA,cMap){
+  const {jsPDF}=window.jspdf;
+  const doc=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  const W=210;const M=14;
+  doc.setFillColor(26,25,23);doc.rect(0,0,W,18,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text('TOLIX · Planning Peinture',M,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);
+  doc.text('Semaine '+semaine+' · Capacité '+maxECA+' ECA/jour · Imprimé le '+new Date().toLocaleDateString('fr-FR'),M,17);
+  let y=24;
+  jours.forEach(j=>{
+    if(y>260){doc.addPage();y=14;}
+    doc.setFillColor(240,237,230);doc.rect(M,y,W-M*2,7,'F');
+    doc.setTextColor(26,25,23);doc.setFont('helvetica','bold');doc.setFontSize(10);
+    doc.text('Jour '+j.jour+' — '+j.eca.toFixed(1)+' ECA',M+2,y+5);
+    y+=9;
+    j.groupes.sort((a,b)=>a.couleur.localeCompare(b.couleur)).forEach(g=>{
+      if(y>265){doc.addPage();y=14;}
+      doc.setFont('helvetica','bold');doc.setFontSize(9);doc.setTextColor(80,80,80);
+      doc.text('● '+g.couleur+' — '+g.eca.toFixed(1)+' ECA',M+2,y+4);
+      y+=6;
+      g.lignes.forEach(l=>{
+        if(y>270){doc.addPage();y=14;}
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(40,40,40);
+        const peintStr=l.peint?'✓':'☐';
+        doc.text(peintStr,M+3,y+3.5);
+        doc.text(l.design.substring(0,45),M+9,y+3.5);
+        doc.text('Qté: '+l.qte,M+120,y+3.5);
+        doc.text(l.dateLiv,M+140,y+3.5);
+        doc.setDrawColor(220,220,220);doc.line(M,y+5,W-M,y+5);
+        y+=6;
+      });
+      y+=2;
+    });
+    y+=4;
+  });
+  doc.save('planning-peinture-'+semaine+'.pdf');
+}
+
+function VuePlanning({lignes,statuts,onToggle,importDate}){
   const [sem,setSem]=useState('');const[nbJ,setNbJ]=useState(5);const[maxECA,setMaxECA]=useState(250);
+  const [filtreCouleur,setFiltreCouleur]=useState('');
   const sems=[...new Set(lignes.map(l=>l.semaine))].filter(Boolean).sort();
   const semCur=sem||sems[0]||'';
-  const ligs=lignes.filter(l=>l.semaine===semCur).map(l=>({...l,peint:!!statuts[l.id+'||'+l.ref]}));
+  const ligsAll=lignes.filter(l=>l.semaine===semCur).map(l=>({...l,peint:!!statuts[l.id+'||'+l.ref]}));
+  const ligs=filtreCouleur?ligsAll.filter(l=>l.couleur===filtreCouleur):ligsAll;
+  const couleursSem=[...new Set(ligsAll.map(l=>l.couleur))].sort();
   const totECA=ligs.reduce((s,l)=>s+getECA(l.ref)*l.qte,0);const ecaJ=nbJ>0?totECA/nbJ:0;const dep=ecaJ>maxECA;
   const jours=lisser(ligs,nbJ);
   const allC=[...new Set(lignes.map(l=>l.couleur))].sort();const cMap={};allC.forEach((c,i)=>cMap[c]=PAL[i%PAL.length]);
@@ -106,8 +149,14 @@ function VuePlanning({lignes,statuts,onToggle}){
       e('span',{style:{fontSize:12,color:'var(--h)'}},'Jours :'),
       ...[1,2,3,4,5,6].map(n=>e('button',{key:n,className:nbJ===n?'act':'',onClick:()=>setNbJ(n),style:{padding:'5px 10px',minWidth:36}},n)),
       e('span',{style:{fontSize:12,color:'var(--h)',marginLeft:8}},'Max ECA/j :'),
-      e('input',{type:'number',value:maxECA,onChange:ev=>setMaxECA(+ev.target.value),style:{width:70},min:50,max:600,step:10})
+      e('input',{type:'number',value:maxECA,onChange:ev=>setMaxECA(+ev.target.value),style:{width:70},min:50,max:600,step:10}),
+      e('select',{value:filtreCouleur,onChange:ev=>setFiltreCouleur(ev.target.value),style:{marginLeft:8}},
+        e('option',{value:''},'Toutes les couleurs'),
+        ...couleursSem.map(c=>e('option',{key:c,value:c},c))
+      ),
+      e('button',{onClick:()=>exportPDF(lisser(ligs,nbJ),semCur,maxECA,cMap),style:{marginLeft:8,fontSize:12,padding:'5px 12px'}},'🖨 PDF')
     ),
+    importDate&&e('div',{style:{fontSize:11,color:'var(--h)',marginBottom:12}},'📅 Import ERP : '+new Date(importDate).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})),
     e('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:16}},
       e(SC,{label:'Lignes',value:ligs.length}),e(SC,{label:'Pièces',value:ligs.reduce((s,l)=>s+l.qte,0)}),
       e(SC,{label:'ECA total',value:fmt(totECA)}),e(SC,{label:'ECA/jour',value:fmt(ecaJ),color:dep?'var(--r)':'var(--g)'})
@@ -241,6 +290,7 @@ function App(){
   const [nomFich,setNomFich]=useState('');
   const [sync,setSync]=useState('⏳ Chargement...');
   const [loading,setLoading]=useState(true);
+  const [importDate,setImportDate]=useState(null);
   const fileRef=useRef();
 
   useEffect(()=>{
@@ -249,6 +299,7 @@ function App(){
       if(lignesData&&lignesData.data&&lignesData.data.length>0){
         setLignes(lignesData.data);
         setNomFich(lignesData.fichier||'');
+        setImportDate(lignesData.import_date||null);
         setSync('✓ Synchronisé');
       } else {
         setSync('');
@@ -269,6 +320,8 @@ function App(){
       setNomFich(file.name);
       setVue('planning');setDetail(null);
       setSync('⏳ Sauvegarde...');
+      const now=new Date().toISOString();
+      setImportDate(now);
       sauvegarderLignes(parsed,file.name).then(()=>setSync('✓ Partagé avec tous'));
     };
     reader.readAsArrayBuffer(file);
@@ -317,7 +370,7 @@ function App(){
           )
         :detail
           ?e(VueDetail,{cmdId:detail,lignes,statuts,onToggle:toggle,onBack:()=>setDetail(null)})
-          :vue==='planning'?e(VuePlanning,{lignes,statuts,onToggle:toggle})
+          :vue==='planning'?e(VuePlanning,{lignes,statuts,onToggle:toggle,importDate})
           :vue==='charge'?e(VueCharge,{lignes,onSem:s=>{setVue('planning');}})
           :e(VueReporting,{lignes,statuts,onToggle:toggle,onCommande:id=>setDetail(id)})
     )

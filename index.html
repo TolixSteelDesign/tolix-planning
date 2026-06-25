@@ -40,7 +40,16 @@ const sb=supabase.createClient(SB_URL,SB_KEY);
 // ── Supabase helpers ──────────────────────────────────────────
 async function chargerStatuts(){const{data,error}=await sb.from('statuts').select('id,peint');if(error)return{};const m={};data.forEach(r=>m[r.id]=r.peint);return m;}
 async function sauvegarderStatut(key,peint){await sb.from('statuts').upsert({id:key,peint,updated_at:new Date().toISOString()});}
-async function chargerLignes(){const{data,error}=await sb.from('lignes_erp').select('data,fichier,import_date').order('import_date',{ascending:false}).limit(1);if(error||!data||!data.length)return null;return data[0];}
+async function chargerLignes(){
+  const{data,error}=await sb.from('lignes_erp').select('data,fichier,import_date').order('import_date',{ascending:false}).limit(1);
+  if(error){console.error('chargerLignes error:',error);return null;}
+  if(!data||!data.length)return null;
+  const row=data[0];
+  try{
+    const parsed=typeof row.data==='string'?JSON.parse(row.data):row.data;
+    return{data:parsed,fichier:row.fichier};
+  }catch(err){console.error('parse error:',err);return null;}
+}
 async function sauvegarderLignes(lignes,fichier){
   await sb.from('lignes_erp').delete().neq('id',0);
   await sb.from('lignes_erp').insert({data:lignes,fichier,import_date:new Date().toISOString()});

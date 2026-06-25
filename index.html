@@ -26,6 +26,9 @@ td{padding:8px 12px;font-size:13px;border-top:1px solid var(--bl)}
 header{background:#1a1917;color:#fff;padding:0 20px;display:flex;align-items:center;gap:12px;height:50px;position:sticky;top:0;z-index:100}
 main{max-width:1100px;margin:0 auto;padding:20px 16px}
 .sync{font-size:11px;color:rgba(255,255,255,0.5)}
+.lock-btn{font-size:12px;padding:4px 12px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.modal-bg{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center}
+.modal{background:#fff;border-radius:12px;padding:28px 32px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
 </style>
 </head>
 <body>
@@ -143,7 +146,8 @@ function VuePlanning({lignes,statuts,onToggle,importDate}){
   const totECA=ligs.reduce((s,l)=>s+getECA(l.ref)*l.qte,0);const ecaJ=nbJ>0?totECA/nbJ:0;const dep=ecaJ>maxECA;
   const jours=lisser(ligs,nbJ);
   const allC=[...new Set(lignes.map(l=>l.couleur))].sort();const cMap={};allC.forEach((c,i)=>cMap[c]=PAL[i%PAL.length]);
-  return e('div',null,
+  return e(React.Fragment,null,
+    e('div',null,
     e('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',marginBottom:16}},
       e('select',{value:semCur,onChange:ev=>setSem(ev.target.value)},sems.map(s=>e('option',{key:s,value:s},'Semaine '+s))),
       e('span',{style:{fontSize:12,color:'var(--h)'}},'Jours :'),
@@ -282,6 +286,34 @@ function VueDetail({cmdId,lignes,statuts,onToggle,onBack}){
   );
 }
 
+function ModalMDP({titre,onSuccess,onClose,mdpAttendu}){
+  const [val,setVal]=useState('');
+  const [err,setErr]=useState(false);
+  const input=useRef();
+  useEffect(()=>{setTimeout(()=>input.current&&input.current.focus(),100);},[]);
+  const check=()=>{
+    if(val===mdpAttendu){onSuccess();onClose();}
+    else{setErr(true);setVal('');}
+  };
+  return e('div',{className:'modal-bg',onClick:onClose},
+    e('div',{className:'modal',onClick:ev=>ev.stopPropagation()},
+      e('h3',{style:{fontSize:16,fontWeight:600,marginBottom:8}},titre),
+      e('p',{style:{fontSize:13,color:'var(--m)',marginBottom:16}},'Entrez le mot de passe pour continuer'),
+      e('input',{ref:input,type:'password',value:val,onChange:ev=>{setVal(ev.target.value);setErr(false);},
+        onKeyDown:ev=>ev.key==='Enter'&&check(),
+        style:{width:'100%',marginBottom:8,padding:'8px 12px',fontSize:14,border:'1px solid '+(err?'var(--r)':'var(--b)'),borderRadius:8}}),
+      err&&e('p',{style:{color:'var(--r)',fontSize:12,marginBottom:8}},'Mot de passe incorrect'),
+      e('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+        e('button',{onClick:onClose,style:{fontSize:13}},'Annuler'),
+        e('button',{onClick:check,className:'act',style:{fontSize:13}},'Déverrouiller')
+      )
+    )
+  );
+}
+
+const MDP_EDIT='Tolixprod';
+const MDP_IMPORT='Giberstein18@';
+
 function App(){
   const [lignes,setLignes]=useState([]);
   const [statuts,setStatuts]=useState({});
@@ -291,6 +323,9 @@ function App(){
   const [sync,setSync]=useState('⏳ Chargement...');
   const [loading,setLoading]=useState(true);
   const [importDate,setImportDate]=useState(null);
+  const [peutEditer,setPeutEditer]=useState(false);
+  const [peutImporter,setPeutImporter]=useState(false);
+  const [modal,setModal]=useState(null); // 'edit' | 'import' | null
   const fileRef=useRef();
 
   useEffect(()=>{
@@ -328,13 +363,14 @@ function App(){
   },[]);
 
   const toggle=useCallback(key=>{
+    if(!peutEditer){setModal('edit');return;}
     setStatuts(prev=>{
       const newVal=!prev[key];
       setSync('⏳ Sauvegarde...');
       sauvegarderStatut(key,newVal).then(()=>setSync('✓ Sauvegardé'));
       return {...prev,[key]:newVal};
     });
-  },[]);
+  },[peutEditer]);
 
   const TABS=[{id:'planning',l:'Planning'},{id:'charge',l:'Charge ECA'},{id:'reporting',l:'Reporting'}];
 
@@ -347,11 +383,17 @@ function App(){
         ...TABS.map(t=>e('button',{key:t.id,onClick:()=>{setVue(t.id);setDetail(null);},style:{background:vue===t.id&&!detail?'rgba(255,255,255,0.15)':'transparent',border:'none',color:'#fff',opacity:vue===t.id&&!detail?1:0.65,padding:'5px 12px',borderRadius:6,fontSize:13}},t.l))
       ),
       e('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:12}},
+        !peutEditer&&e('button',{onClick:()=>setModal('edit'),className:'lock-btn',style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff'}},'🔒 Mode consultation'),
+        peutEditer&&!peutImporter&&e('button',{onClick:()=>setModal('import'),className:'lock-btn',style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff'}},'🔓 Edition · 🔒 Import'),
+        peutEditer&&peutImporter&&e('span',{style:{fontSize:11,color:'rgba(255,255,255,0.5)'}},'🔓 Accès complet'),
         sync&&e('span',{className:'sync'},sync),
         nomFich&&e('span',{style:{fontSize:11,color:'rgba(255,255,255,0.45)'}},nomFich),
         e('label',{style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',padding:'4px 12px',borderRadius:6,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:6}},
-          '📂 '+(lignes.length>0?'Mettre à jour ERP':'Importer ERP'),
-          e('input',{ref:fileRef,type:'file',accept:'.xlsx,.xls,.csv',style:{display:'none'},onChange:ev=>loadFile(ev.target.files[0])})
+          '📂 '+(lignes.length>0?'Mettre à jour ERP':'Importer ERP')+(!peutImporter?' 🔒':''),
+          e('input',{ref:fileRef,type:'file',accept:'.xlsx,.xls,.csv',style:{display:'none'},onChange:ev=>{
+                  if(!peutImporter){setModal('import');ev.target.value='';return;}
+                  loadFile(ev.target.files[0]);
+                }})
         )
       )
     ),
@@ -374,6 +416,18 @@ function App(){
           :vue==='charge'?e(VueCharge,{lignes,onSem:s=>{setVue('planning');}})
           :e(VueReporting,{lignes,statuts,onToggle:toggle,onCommande:id=>setDetail(id)})
     )
+    modal==='edit'&&e(ModalMDP,{
+      titre:'Déverrouiller OK/NOK',
+      mdpAttendu:MDP_EDIT,
+      onSuccess:()=>setPeutEditer(true),
+      onClose:()=>setModal(null)
+    }),
+    modal==='import'&&e(ModalMDP,{
+      titre:'Déverrouiller import ERP',
+      mdpAttendu:MDP_IMPORT,
+      onSuccess:()=>{setPeutEditer(true);setPeutImporter(true);},
+      onClose:()=>setModal(null)
+    })
   );
 }
 ReactDOM.createRoot(document.getElementById('root')).render(e(App,null));

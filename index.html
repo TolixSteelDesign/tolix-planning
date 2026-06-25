@@ -33,7 +33,7 @@ main{max-width:1100px;margin:0 auto;padding:20px 16px}
 </head>
 <body>
 <div id="root"></div>
-<script charset="utf-8">
+<script>
 const e=React.createElement;
 const {useState,useCallback,useRef,useEffect}=React;
 
@@ -312,7 +312,7 @@ function ModalMDP({titre,onSuccess,onClose,mdpAttendu}){
 }
 
 const MDP_EDIT='Tolixprod';
-const MDP_IMPORT='Giberstein18';
+const MDP_IMPORT='Giberstein18@';
 
 function App(){
   const [lignes,setLignes]=useState([]);
@@ -415,7 +415,7 @@ function App(){
           :vue==='planning'?e(VuePlanning,{lignes,statuts,onToggle:toggle,importDate})
           :vue==='charge'?e(VueCharge,{lignes,onSem:s=>{setVue('planning');}})
           :e(VueReporting,{lignes,statuts,onToggle:toggle,onCommande:id=>setDetail(id)})
-    ),
+    )
     modal==='edit'&&e(ModalMDP,{
       titre:'Déverrouiller OK/NOK',
       mdpAttendu:MDP_EDIT,

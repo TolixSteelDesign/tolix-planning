@@ -415,7 +415,7 @@ function App(){
           :vue==='planning'?e(VuePlanning,{lignes,statuts,onToggle:toggle,importDate})
           :vue==='charge'?e(VueCharge,{lignes,onSem:s=>{setVue('planning');}})
           :e(VueReporting,{lignes,statuts,onToggle:toggle,onCommande:id=>setDetail(id)})
-    )
+    ),
     modal==='edit'&&e(ModalMDP,{
       titre:'Déverrouiller OK/NOK',
       mdpAttendu:MDP_EDIT,

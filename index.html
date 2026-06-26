@@ -494,53 +494,53 @@ function VueReporting(props){
     var f=function(s){var p=s.split('/');return p.length===3?p[2]+p[1]+p[0]:'99999999';};
     return f(a.dateLiv).localeCompare(f(b.dateLiv));
   });
-  var cmdsFiltered=cmds.filter(function(cmd){
-    if(!recherche)return true;
-    var r=recherche.toLowerCase();
-    return cmd.id.toLowerCase().includes(r)||cmd.client.toLowerCase().includes(r);
-  });
-
+  var cmdsFiltered=recherche
+    ?cmds.filter(function(cmd){
+        var r=recherche.toLowerCase();
+        return cmd.id.toLowerCase().includes(r)||cmd.client.toLowerCase().includes(r);
+      })
+    :cmds;
   return h('div',null,
     h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:12,flexWrap:'wrap'}},
-      h('input',{type:'text',placeholder:'Rechercher par N° commande ou client...',value:recherche,
+      h('input',{type:'text',placeholder:'Rechercher N° commande ou client...',value:recherche,
         onChange:function(ev){setRecherche(ev.target.value);},
         style:{flex:1,maxWidth:400}}),
-      recherche&&h('button',{onClick:function(){setRecherche('');},style:{fontSize:12,padding:'5px 10px'}},'X'),
+      recherche?h('button',{onClick:function(){setRecherche('');},style:{fontSize:12,padding:'5px 10px'}},'X'):null,
       h('span',{style:{fontSize:12,color:'var(--h)'}},cmdsFiltered.length+'/'+cmds.length+' commandes')
     ),
     h('div',{className:'card'},
-    h('table',null,
-      h('thead',null,h('tr',null,
-        h('th',{style:{width:'12%'}},'N cde'),
-        h('th',{style:{width:'28%'}},'Client'),
-        h('th',{style:{width:'14%',textAlign:'center'}},'Date liv.'),
-        h('th',{style:{width:'20%',textAlign:'center'}},'Avancement'),
-        h('th',{style:{width:'12%',textAlign:'center'}},'Lignes'),
-        h('th',{style:{width:'14%',textAlign:'center'}},'Statut')
-      )),
-      h('tbody',null,cmdsFiltered.map(function(cmd,i){
-        var pct=Math.round(cmd.peintes/cmd.lignes.length*100);
-        var bg,col,lbl;
-        if(pct===100){bg='#e8f4ee';col='var(--g)';lbl='Termine';}
-        else if(pct>0){bg='#fef0e4';col='var(--o)';lbl='En cours';}
-        else{bg='#fceaea';col='var(--r)';lbl='En attente';}
-        return h('tr',{key:cmd.id,style:{background:i%2===0?'#fff':'#fafaf8'}},
-          h('td',null,h('button',{onClick:function(){onCommande(cmd.id);},style:{background:'none',border:'none',padding:0,color:'var(--u)',textDecoration:'underline',fontWeight:500,cursor:'pointer',fontSize:13}},cmd.id)),
-          h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:cmd.client},cmd.client),
-          h('td',{style:{textAlign:'center',fontSize:12,color:'var(--m)'}},cmd.dateLiv),
-          h('td',{style:{textAlign:'center'}},
-            h('div',{style:{height:5,background:'#e5e2d9',borderRadius:99,overflow:'hidden',width:80,margin:'0 auto 3px'}},
-              h('div',{style:{height:'100%',width:pct+'%',background:col,borderRadius:99}})),
-            h('span',{style:{fontSize:11,color:'var(--h)'}},pct+'%')
-          ),
-          h('td',{style:{textAlign:'center',color:'var(--m)'}},cmd.peintes+'/'+cmd.lignes.length),
-          h('td',{style:{textAlign:'center'}},h('span',{className:'badge',style:{background:bg,color:col}},lbl))
-        );
-      }))
+      h('table',null,
+        h('thead',null,h('tr',null,
+          h('th',{style:{width:'12%'}},'N cde'),
+          h('th',{style:{width:'28%'}},'Client'),
+          h('th',{style:{width:'14%',textAlign:'center'}},'Date liv.'),
+          h('th',{style:{width:'20%',textAlign:'center'}},'Avancement'),
+          h('th',{style:{width:'12%',textAlign:'center'}},'Lignes'),
+          h('th',{style:{width:'14%',textAlign:'center'}},'Statut')
+        )),
+        h('tbody',null,cmdsFiltered.map(function(cmd,i){
+          var pct=Math.round(cmd.peintes/cmd.lignes.length*100);
+          var bg,col,lbl;
+          if(pct===100){bg='#e8f4ee';col='var(--g)';lbl='Termine';}
+          else if(pct>0){bg='#fef0e4';col='var(--o)';lbl='En cours';}
+          else{bg='#fceaea';col='var(--r)';lbl='En attente';}
+          return h('tr',{key:cmd.id,style:{background:i%2===0?'#fff':'#fafaf8'}},
+            h('td',null,h('button',{onClick:function(){onCommande(cmd.id);},style:{background:'none',border:'none',padding:0,color:'var(--u)',textDecoration:'underline',fontWeight:500,cursor:'pointer',fontSize:13}},cmd.id)),
+            h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:cmd.client},cmd.client),
+            h('td',{style:{textAlign:'center',fontSize:12,color:'var(--m)'}},cmd.dateLiv),
+            h('td',{style:{textAlign:'center'}},
+              h('div',{style:{height:5,background:'#e5e2d9',borderRadius:99,overflow:'hidden',width:80,margin:'0 auto 3px'}},
+                h('div',{style:{height:'100%',width:pct+'%',background:col,borderRadius:99}})),
+              h('span',{style:{fontSize:11,color:'var(--h)'}},pct+'%')
+            ),
+            h('td',{style:{textAlign:'center',color:'var(--m)'}},cmd.peintes+'/'+cmd.lignes.length),
+            h('td',{style:{textAlign:'center'}},h('span',{className:'badge',style:{background:bg,color:col}},lbl))
+          );
+        }))
+      )
     )
   );
 }
-
 function VueDetail(props){
   var cmdId=props.cmdId,lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,onBack=props.onBack;
   var ligs=lignes.filter(function(l){return l.id===cmdId;}).map(function(l){return Object.assign({},l,{peint:!!statuts[l.id+'||'+l.ref]});});

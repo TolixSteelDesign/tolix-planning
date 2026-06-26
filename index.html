@@ -609,13 +609,11 @@ function App(){
         peutEditer&&peutImporter&&h('span',{style:{fontSize:11,color:'rgba(255,255,255,0.5)'}},'[Acces complet]'),
         sync&&h('span',{className:'sync'},sync),
         nomFich&&h('span',{style:{fontSize:11,color:'rgba(255,255,255,0.45)'}},nomFich),
-        h('label',{style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',padding:'4px 12px',borderRadius:6,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:6}},
+        h('label',{style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',padding:'4px 12px',borderRadius:6,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:6},
+          onClick:function(ev){if(!peutImporter){ev.preventDefault();setModal('import');}}},
           (lignes.length>0?'Mettre a jour ERP':'Importer ERP')+(peutImporter?'':' [verr.]'),
           h('input',{ref:fileRef,type:'file',accept:'.xlsx,.xls,.csv',style:{display:'none'},
-            onChange:function(ev){
-              if(!peutImporter){setModal('import');ev.target.value='';return;}
-              loadFile(ev.target.files[0]);
-            }})
+            onChange:function(ev){loadFile(ev.target.files[0]);}})
         )
       )
     ),

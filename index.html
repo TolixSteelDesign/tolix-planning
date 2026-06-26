@@ -201,37 +201,37 @@ function getECA(ref,override){
 function fmt(n){const x=typeof n==='string'?parseFloat(n):n;return Number.isInteger(x)?String(x):x.toFixed(1);}
 
 function parseERP(rows){
-  const hdrs=rows[0].map(function(r){return String(r||'').trim().toUpperCase();});
-  const col=function(k){return hdrs.indexOf(k);};
-  const idx={dateliv:col('DATELIV'),numeroc:col('NUMEROC'),nom:col('NOM'),design:col('DESIGN'),qte:col('QTE'),qtereste:col('QTERESTE'),ref:col('REFERENCE')};
-  const out=[];
-  for(let i=1;i<rows.length;i++){
-    const r=rows[i];
-    const design=String(r[idx.design]||'').trim();
-    const qCol=idx.qtereste>=0?idx.qtereste:idx.qte;
-    const qte=parseFloat(r[qCol])||0;
+  var hdrs=rows[0].map(function(r){return String(r||'').trim().toUpperCase();});
+  var col=function(k){return hdrs.indexOf(k);};
+  var idx={dateliv:col('DATELIV'),numeroc:col('NUMEROC'),nom:col('NOM'),design:col('DESIGN'),qte:col('QTE'),qtereste:col('QTERESTE'),ref:col('REFERENCE')};
+  var out=[];
+  for(var i=1;i<rows.length;i++){
+    var r=rows[i];
+    var design=String(r[idx.design]||'').trim();
+    var qCol=idx.qtereste>=0?idx.qtereste:idx.qte;
+    var qte=parseFloat(r[qCol])||0;
     if(qte<=0)continue;
-    if(EXCL.some(x=>design.toUpperCase().includes(x)))continue;
-    const pos=design.lastIndexOf('/ ');
-    const couleur=pos>=0?design.slice(pos+2).trim():'Sans couleur';
-    const produit=pos>0?design.slice(0,pos).trim():design;
-    let dateLiv='';
-    const rawLiv=r[idx.dateliv];
+    if(EXCL.some(function(x){return design.toUpperCase().includes(x);}))continue;
+    var pos=design.lastIndexOf('/ ');
+    var couleur=pos>=0?design.slice(pos+2).trim():'Sans couleur';
+    var produit=pos>0?design.slice(0,pos).trim():design;
+    var dateLiv='';
+    var rawLiv=r[idx.dateliv];
     if(rawLiv){
       if(typeof rawLiv==='number'){
-        const d=new Date(Math.round((rawLiv-25569)*86400*1000));
+        var d=new Date(Math.round((rawLiv-25569)*86400*1000));
         dateLiv=String(d.getUTCDate()).padStart(2,'0')+'/'+String(d.getUTCMonth()+1).padStart(2,'0')+'/'+d.getUTCFullYear();
       }else dateLiv=String(rawLiv).trim();
     }
-    let semaine='';
+    var semaine='';
     if(dateLiv.length>=8){
-      const p=dateLiv.split('/');
+      var p=dateLiv.split('/');
       if(p.length===3){
-        const liv=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
-        const mp=new Date(liv.getTime()-28*86400*1000);
+        var liv=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+        var mp=new Date(liv.getTime()-28*86400*1000);
         mp.setHours(0,0,0,0);mp.setDate(mp.getDate()+3-((mp.getDay()+6)%7));
-        const w1=new Date(mp.getFullYear(),0,4);
-        const wn=1+Math.round(((mp-w1)/86400000-3+((w1.getDay()+6)%7))/7);
+        var w1=new Date(mp.getFullYear(),0,4);
+        var wn=1+Math.round(((mp-w1)/86400000-3+((w1.getDay()+6)%7))/7);
         semaine='S'+String(wn).padStart(2,'0')+'-'+String(mp.getFullYear()).slice(-2);
       }
     }

@@ -638,10 +638,9 @@ function App(){
             ?h(VuePlanning,{lignes:lignes,statuts:statuts,onToggle:toggle,importDate:importDate,peutEditer:peutEditer,ecaOverride:ecaOverride})
             :vue==='charge'
               ?h(VueCharge,{lignes:lignes,onSem:function(s){setVue('planning');},ecaOverride:ecaOverride})
-              :h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);}})
-              :vue==='eca'
-                ?h(VueECA,{ecaOverride:ecaOverride,setEcaOverride:setEcaOverride,peutImporter:peutImporter,setModal:setModal})
-                :null
+              :vue==='reporting'
+                ?h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);}})
+                :h(VueECA,{ecaOverride:ecaOverride,setEcaOverride:setEcaOverride,peutImporter:peutImporter,setModal:setModal})
     ),
     modal==='edit'&&h(ModalMDP,{titre:'Deverrouiller OK/NOK',mdpAttendu:MDP_EDIT,onSuccess:function(){setPeutEditer(true);},onClose:function(){setModal(null);}}),
     modal==='import'&&h(ModalMDP,{titre:'Deverrouiller import ERP',mdpAttendu:MDP_IMPORT,onSuccess:function(){setPeutEditer(true);setPeutImporter(true);},onClose:function(){setModal(null);}})

@@ -213,9 +213,8 @@ function parseERP(rows){
     if(qte<=0)continue;
     if(EXCL.some(x=>design.toUpperCase().includes(x)))continue;
     const pos=design.lastIndexOf('/ ');
-    const couleur=pos>=0?design.slice(pos+2).trim():'';
+    const couleur=pos>=0?design.slice(pos+2).trim():'Sans couleur';
     const produit=pos>0?design.slice(0,pos).trim():design;
-    if(!couleur)continue;
     let dateLiv='';
     const rawLiv=r[idx.dateliv];
     if(rawLiv){
@@ -482,6 +481,7 @@ function VueCharge(props){
 
 function VueReporting(props){
   var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,onCommande=props.onCommande;
+  var sr=useState(''),recherche=sr[0],setRecherche=sr[1];
   var byCde={};
   lignes.forEach(function(l){
     var k=l.id+'||'+l.ref;
@@ -494,7 +494,21 @@ function VueReporting(props){
     var f=function(s){var p=s.split('/');return p.length===3?p[2]+p[1]+p[0]:'99999999';};
     return f(a.dateLiv).localeCompare(f(b.dateLiv));
   });
-  return h('div',{className:'card'},
+  var cmdsFiltered=cmds.filter(function(cmd){
+    if(!recherche)return true;
+    var r=recherche.toLowerCase();
+    return cmd.id.toLowerCase().includes(r)||cmd.client.toLowerCase().includes(r);
+  });
+
+  return h('div',null,
+    h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:12,flexWrap:'wrap'}},
+      h('input',{type:'text',placeholder:'Rechercher par N° commande ou client...',value:recherche,
+        onChange:function(ev){setRecherche(ev.target.value);},
+        style:{flex:1,maxWidth:400}}),
+      recherche&&h('button',{onClick:function(){setRecherche('');},style:{fontSize:12,padding:'5px 10px'}},'X'),
+      h('span',{style:{fontSize:12,color:'var(--h)'}},cmdsFiltered.length+'/'+cmds.length+' commandes')
+    ),
+    h('div',{className:'card'},
     h('table',null,
       h('thead',null,h('tr',null,
         h('th',{style:{width:'12%'}},'N cde'),
@@ -504,7 +518,7 @@ function VueReporting(props){
         h('th',{style:{width:'12%',textAlign:'center'}},'Lignes'),
         h('th',{style:{width:'14%',textAlign:'center'}},'Statut')
       )),
-      h('tbody',null,cmds.map(function(cmd,i){
+      h('tbody',null,cmdsFiltered.map(function(cmd,i){
         var pct=Math.round(cmd.peintes/cmd.lignes.length*100);
         var bg,col,lbl;
         if(pct===100){bg='#e8f4ee';col='var(--g)';lbl='Termine';}

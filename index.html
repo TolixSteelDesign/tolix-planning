@@ -46,7 +46,7 @@ const MDP_IMPORT='Giberstein18';
 async function chargerStatuts(){
   const{data,error}=await sb.from('statuts').select('id,peint');
   if(error)return{};
-  const m={};data.forEach(r=>m[r.id]=r.peint);return m;
+  const m={};data.forEach(function(r){m[r.id]=r.peint;});return m;
 }
 async function sauvegarderStatut(key,peint){
   await sb.from('statuts').upsert({id:key,peint,updated_at:new Date().toISOString()});
@@ -68,12 +68,17 @@ const ECA_REF={"EACAC-11474-C":1,"EACAC-11476-C":1,"EACAC-11478-C":1,"EACAC-1129
 const PAL=['#1D9E75','#185FA5','#BA7517','#993C1D','#534AB7','#3B6D11','#A32D2D','#0F6E56','#854F0B','#3C3489','#1a6b8a','#7a3b7a','#5a6800'];
 const EXCL=['EMBALLAGE','PALETTE','ECHANTILLON','NUANCIER','KIT EMBALLAGE'];
 
-function getECA(ref){return ref?(ECA_REF[ref.substring(0,13)]??1):1;}
+function getECA(ref,override){
+  if(!ref)return 1;
+  var k=ref.substring(0,13);
+  if(override&&override[k]!==undefined)return override[k];
+  return ECA_REF[k]!==undefined?ECA_REF[k]:1;
+}
 function fmt(n){const x=typeof n==='string'?parseFloat(n):n;return Number.isInteger(x)?String(x):x.toFixed(1);}
 
 function parseERP(rows){
-  const hdrs=rows[0].map(r=>String(r||'').trim().toUpperCase());
-  const col=k=>hdrs.indexOf(k);
+  const hdrs=rows[0].map(function(r){return String(r||'').trim().toUpperCase();});
+  const col=function(k){return hdrs.indexOf(k);};
   const idx={dateliv:col('DATELIV'),numeroc:col('NUMEROC'),nom:col('NOM'),design:col('DESIGN'),qte:col('QTE'),qtereste:col('QTERESTE'),ref:col('REFERENCE')};
   const out=[];
   for(let i=1;i<rows.length;i++){
@@ -112,12 +117,12 @@ function parseERP(rows){
   return out;
 }
 
-function lisser(lignes,nbJ){
+function lisser(lignes,nbJ,ecaOvr){
   const map={};
   lignes.forEach(function(l){
     if(!map[l.couleur])map[l.couleur]={couleur:l.couleur,lignes:[],eca:0};
     map[l.couleur].lignes.push(l);
-    map[l.couleur].eca+=getECA(l.ref)*l.qte;
+    map[l.couleur].eca+=getECA(l.ref,ecaOvr)*l.qte;
   });
   const groupes=Object.values(map).sort(function(a,b){return b.eca-a.eca;});
   const jours=[];
@@ -201,7 +206,7 @@ function SC(props){
 }
 
 function VuePlanning(props){
-  var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,importDate=props.importDate,peutEditer=props.peutEditer;
+  var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,importDate=props.importDate,peutEditer=props.peutEditer,ecaOverride=props.ecaOverride||{};
   var s1=useState(''),sem=s1[0],setSem=s1[1];
   var s2=useState(5),nbJ=s2[0],setNbJ=s2[1];
   var s3=useState(250),maxECA=s3[0],setMaxECA=s3[1];
@@ -214,7 +219,7 @@ function VuePlanning(props){
   var totECA=ligs.reduce(function(s,l){return s+getECA(l.ref)*l.qte;},0);
   var ecaJ=nbJ>0?totECA/nbJ:0;
   var dep=ecaJ>maxECA;
-  var jours=lisser(ligs,nbJ);
+  var jours=lisser(ligs,nbJ,ecaOverride);
   var allC=[...new Set(lignes.map(function(l){return l.couleur;}))].sort();
   var cMap={};allC.forEach(function(c,i){cMap[c]=PAL[i%PAL.length];});
 
@@ -223,7 +228,7 @@ function VuePlanning(props){
       h('select',{value:semCur,onChange:function(ev){setSem(ev.target.value);}},
         sems.map(function(s){return h('option',{key:s,value:s},'Semaine '+s);})),
       h('span',{style:{fontSize:12,color:'var(--h)'}},'Jours :'),
-      [1,2,3,4,5,6].map(function(n){return h('button',{key:n,className:nbJ===n?'act':'',onClick:function(){setNbJ(n);},style:{padding:'5px 10px',minWidth:36}},n);}),
+      [1,2,3,4,5].map(function(n){return h('button',{key:n,className:nbJ===n?'act':'',onClick:function(){setNbJ(n);},style:{padding:'5px 10px',minWidth:36}},n);}),
       h('span',{style:{fontSize:12,color:'var(--h)',marginLeft:8}},'Max ECA/j :'),
       h('input',{type:'number',value:maxECA,onChange:function(ev){setMaxECA(+ev.target.value);},style:{width:70},min:50,max:600,step:10}),
       h('select',{value:filtre,onChange:function(ev){setFiltre(ev.target.value);},style:{marginLeft:8}},
@@ -311,18 +316,18 @@ function VuePlanning(props){
 }
 
 function VueCharge(props){
-  var lignes=props.lignes,onSem=props.onSem;
+  var lignes=props.lignes,onSem=props.onSem,ecaOverride=props.ecaOverride||{};
   var s1=useState(250),maxECA=s1[0],setMaxECA=s1[1];
   var s2=useState(5),nbJ=s2[0],setNbJ=s2[1];
   var sems=[...new Set(lignes.map(function(l){return l.semaine;}))].filter(Boolean).sort();
   var ecaBySem={};
-  sems.forEach(function(s){ecaBySem[s]=lignes.filter(function(l){return l.semaine===s;}).reduce(function(t,l){return t+getECA(l.ref)*l.qte;},0);});
+  sems.forEach(function(s){ecaBySem[s]=lignes.filter(function(l){return l.semaine===s;}).reduce(function(t,l){return t+getECA(l.ref,ecaOverride)*l.qte;},0);});
   var maxV=Math.max.apply(null,Object.values(ecaBySem).concat([1]));
   var cap=maxECA*nbJ;
   return h('div',null,
     h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',marginBottom:20}},
       h('span',{style:{fontSize:12,color:'var(--h)'}},'Jours / sem :'),
-      [1,2,3,4,5,6].map(function(n){return h('button',{key:n,className:nbJ===n?'act':'',onClick:function(){setNbJ(n);},style:{padding:'5px 10px',minWidth:36}},n);}),
+      [1,2,3,4,5].map(function(n){return h('button',{key:n,className:nbJ===n?'act':'',onClick:function(){setNbJ(n);},style:{padding:'5px 10px',minWidth:36}},n);}),
       h('span',{style:{fontSize:12,color:'var(--h)',marginLeft:8}},'Max ECA/j :'),
       h('input',{type:'number',value:maxECA,onChange:function(ev){setMaxECA(+ev.target.value);},style:{width:70},min:50,max:600,step:10}),
       h('span',{style:{fontSize:12,color:'var(--h)'}},'Capacite : '+cap+' ECA/sem')
@@ -453,6 +458,78 @@ function VueDetail(props){
   );
 }
 
+function VueECA(props){
+  var ecaOverride=props.ecaOverride,setEcaOverride=props.setEcaOverride,peutImporter=props.peutImporter,setModal=props.setModal;
+  var s1=useState(''),recherche=s1[0],setRecherche=s1[1];
+  var s2=useState(null),editing=s2[0],setEditing=s2[1];
+  var s3=useState(''),editVal=s3[0],setEditVal=s3[1];
+
+  var refs=Object.keys(ECA_REF).sort(function(a,b){return a.localeCompare(b);});
+  var filtrees=refs.filter(function(r){return r.toLowerCase().includes(recherche.toLowerCase());});
+
+  function startEdit(ref){
+    if(!peutImporter){setModal('import');return;}
+    setEditing(ref);
+    setEditVal(String(ecaOverride[ref]!==undefined?ecaOverride[ref]:ECA_REF[ref]));
+  }
+
+  function saveEdit(ref){
+    var val=parseFloat(editVal);
+    if(isNaN(val)||val<=0){setEditing(null);return;}
+    setEcaOverride(function(prev){return Object.assign({},prev,{[ref]:val});});
+    setEditing(null);
+  }
+
+  function resetRef(ref){
+    if(!peutImporter){setModal('import');return;}
+    setEcaOverride(function(prev){var n=Object.assign({},prev);delete n[ref];return n;});
+  }
+
+  return h('div',null,
+    !peutImporter&&h('div',{style:{background:'#fef0e4',border:'1px solid #f0d0a0',borderRadius:8,padding:'10px 16px',marginBottom:16,fontSize:13,color:'var(--o)'}},'Mot de passe administrateur requis pour modifier les ECA. Cliquez sur [Edition] en haut a droite.'),
+    h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:16}},
+      h('input',{type:'text',placeholder:'Rechercher une reference...',value:recherche,onChange:function(ev){setRecherche(ev.target.value);},style:{flex:1,maxWidth:400}}),
+      h('span',{style:{fontSize:12,color:'var(--h)'}},filtrees.length+' references')
+    ),
+    h('div',{className:'card'},
+      h('table',null,
+        h('thead',null,h('tr',null,
+          h('th',{style:{width:'35%'}},'Reference'),
+          h('th',{style:{width:'15%',textAlign:'center'}},'ECA defaut'),
+          h('th',{style:{width:'15%',textAlign:'center'}},'ECA actuel'),
+          h('th',{style:{width:'15%',textAlign:'center'}},'')
+        )),
+        h('tbody',null,filtrees.map(function(ref,i){
+          var defaut=ECA_REF[ref];
+          var actuel=ecaOverride[ref]!==undefined?ecaOverride[ref]:defaut;
+          var modifie=ecaOverride[ref]!==undefined;
+          return h('tr',{key:ref,style:{background:i%2===0?'#fff':'#fafaf8'}},
+            h('td',{style:{fontFamily:'monospace',fontSize:12,color:'var(--m)'}},ref),
+            h('td',{style:{textAlign:'center',color:'var(--h)'}},''+defaut),
+            h('td',{style:{textAlign:'center'}},
+              editing===ref
+                ?h('input',{type:'number',value:editVal,
+                    onChange:function(ev){setEditVal(ev.target.value);},
+                    onKeyDown:function(ev){if(ev.key==='Enter')saveEdit(ref);if(ev.key==='Escape')setEditing(null);},
+                    onBlur:function(){saveEdit(ref);},
+                    style:{width:70,textAlign:'center',padding:'3px 6px'},
+                    autoFocus:true,min:0.25,step:0.25})
+                :h('span',{onClick:function(){startEdit(ref);},
+                    style:{cursor:peutImporter?'pointer':'default',fontWeight:600,fontSize:14,color:modifie?'var(--o)':'var(--t)',padding:'2px 8px',borderRadius:4,display:'inline-block'},
+                    title:peutImporter?'Cliquer pour modifier':''},
+                    ''+actuel+(modifie?' *':''))
+            ),
+            h('td',{style:{textAlign:'center'}},
+              modifie&&h('button',{onClick:function(){resetRef(ref);},style:{fontSize:11,padding:'2px 8px',color:'var(--m)'}},'Reset')
+            )
+          );
+        }))
+      )
+    ),
+    h('p',{style:{marginTop:12,fontSize:11,color:'var(--h)'}},'Cliquez sur un ECA pour le modifier (mot de passe admin requis) - Appuyez sur Entree pour valider')
+  );
+}
+
 function App(){
   var s0=useState([]),lignes=s0[0],setLignes=s0[1];
   var s1=useState({}),statuts=s1[0],setStatuts=s1[1];
@@ -465,6 +542,7 @@ function App(){
   var s8=useState(false),peutEditer=s8[0],setPeutEditer=s8[1];
   var s9=useState(false),peutImporter=s9[0],setPeutImporter=s9[1];
   var s10=useState(null),modal=s10[0],setModal=s10[1];
+  var s11=useState({}),ecaOverride=s11[0],setEcaOverride=s11[1];
   var fileRef=useRef();
 
   useEffect(function(){
@@ -512,7 +590,7 @@ function App(){
     });
   },[peutEditer]);
 
-  var TABS=[{id:'planning',l:'Planning'},{id:'charge',l:'Charge ECA'},{id:'reporting',l:'Reporting'}];
+  var TABS=[{id:'planning',l:'Planning'},{id:'charge',l:'Charge ECA'},{id:'reporting',l:'Reporting'},{id:'eca',l:'Ref. ECA'}];
 
   if(loading)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--h)',fontSize:14}},'Chargement...');
 
@@ -557,10 +635,13 @@ function App(){
         :detail
           ?h(VueDetail,{cmdId:detail,lignes:lignes,statuts:statuts,onToggle:toggle,onBack:function(){setDetail(null);}})
           :vue==='planning'
-            ?h(VuePlanning,{lignes:lignes,statuts:statuts,onToggle:toggle,importDate:importDate,peutEditer:peutEditer})
+            ?h(VuePlanning,{lignes:lignes,statuts:statuts,onToggle:toggle,importDate:importDate,peutEditer:peutEditer,ecaOverride:ecaOverride})
             :vue==='charge'
-              ?h(VueCharge,{lignes:lignes,onSem:function(s){setVue('planning');}})
+              ?h(VueCharge,{lignes:lignes,onSem:function(s){setVue('planning');},ecaOverride:ecaOverride})
               :h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);}})
+              :vue==='eca'
+                ?h(VueECA,{ecaOverride:ecaOverride,setEcaOverride:setEcaOverride,peutImporter:peutImporter,setModal:setModal})
+                :null
     ),
     modal==='edit'&&h(ModalMDP,{titre:'Deverrouiller OK/NOK',mdpAttendu:MDP_EDIT,onSuccess:function(){setPeutEditer(true);},onClose:function(){setModal(null);}}),
     modal==='import'&&h(ModalMDP,{titre:'Deverrouiller import ERP',mdpAttendu:MDP_IMPORT,onSuccess:function(){setPeutEditer(true);setPeutImporter(true);},onClose:function(){setModal(null);}})

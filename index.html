@@ -28,6 +28,26 @@ main{max-width:1100px;margin:0 auto;padding:20px 16px}
 .sync{font-size:11px;color:rgba(255,255,255,0.5)}
 .modal-bg{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;display:flex;align-items:center;justify-content:center}
 .modal{background:#fff;border-radius:12px;padding:28px 32px;width:320px;box-shadow:0 8px 32px rgba(0,0,0,0.2)}
+/* Mobile */
+@media(max-width:600px){
+  header{height:auto;padding:10px 12px;flex-wrap:wrap;gap:6px}
+  header nav{display:none}
+  main{padding:12px 8px;padding-bottom:70px}
+  .stat{padding:10px 12px}
+  .stat .val{font-size:16px}
+  table{font-size:12px}
+  th,td{padding:6px 8px}
+  .mobile-nav{display:flex!important}
+  .card{border-radius:8px}
+  .mobile-hide{display:none!important}
+  select,input{font-size:16px}
+}
+@media(min-width:601px){
+  .mobile-nav{display:none!important}
+}
+.mobile-nav{position:fixed;bottom:0;left:0;right:0;background:#1a1917;display:none;z-index:200;border-top:1px solid #333}
+.mobile-nav button{flex:1;background:transparent;border:none;color:rgba(255,255,255,0.6);padding:10px 4px;font-size:10px;border-radius:0;flex-direction:column;gap:2px;height:56px}
+.mobile-nav button.act{color:#fff;border-top:2px solid #fff}
 </style>
 </head>
 <body>
@@ -404,22 +424,22 @@ function VuePlanning(props){
                 ),
                 h('table',null,
                   h('thead',null,h('tr',null,
-                    h('th',{style:{width:'32%'}},'Designation'),
-                    h('th',{style:{width:'22%'}},'Client'),
+                    h('th',{style:{width:'38%'}},'Designation'),
+                    h('th',{style:{width:'20%'},className:'mobile-hide'},'Client'),
                     h('th',{style:{width:'8%',textAlign:'center'}},'Qte'),
-                    h('th',{style:{width:'10%',textAlign:'center'}},'ECA'),
-                    h('th',{style:{width:'16%',textAlign:'center'}},'Date liv.'),
+                    h('th',{style:{width:'10%',textAlign:'center'},className:'mobile-hide'},'ECA'),
+                    h('th',{style:{width:'12%',textAlign:'center'},className:'mobile-hide'},'Date liv.'),
                     h('th',{style:{width:'12%',textAlign:'center'}},'Peint')
                   )),
                   h('tbody',null,g.lignes.map(function(l,li){
                     var key=l.id+'||'+l.ref;
                     var eu=getECA(l.ref);
                     return h('tr',{key:li,style:{background:l.peint?'#f0faf4':li%2===0?'#fff':'#fafaf8'}},
-                      h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design},l.design),
-                      h('td',{style:{color:'var(--m)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.client},l.client),
+                      h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design+' - '+l.client},l.design),
+                      h('td',{style:{color:'var(--m)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.client,className:'mobile-hide'},l.client),
                       h('td',{style:{textAlign:'center',fontWeight:500}},l.qte),
-                      h('td',{style:{textAlign:'center',color:'var(--h)'}},fmt(eu*l.qte)),
-                      h('td',{style:{textAlign:'center',color:'var(--m)',fontSize:12}},l.dateLiv),
+                      h('td',{style:{textAlign:'center',color:'var(--h)'},className:'mobile-hide'},fmt(eu*l.qte)),
+                      h('td',{style:{textAlign:'center',color:'var(--m)',fontSize:12},className:'mobile-hide'},l.dateLiv),
                       h('td',{style:{textAlign:'center'}},
                         h('button',{onClick:function(){onToggle(key);},
                           style:{padding:'2px 10px',fontSize:11,fontWeight:500,borderRadius:99,
@@ -742,11 +762,11 @@ function App(){
         })
       ),
       h('div',{style:{marginLeft:'auto',display:'flex',alignItems:'center',gap:10}},
-        !peutEditer&&h('button',{onClick:function(){setModal('edit');},style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',fontSize:12,padding:'4px 12px',borderRadius:6}},'[Consultation]'),
+        !peutEditer&&h('button',{onClick:function(){setModal('edit');},className:'mobile-hide',style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',fontSize:12,padding:'4px 12px',borderRadius:6}},'[Consultation]'),
         peutEditer&&!peutImporter&&h('button',{onClick:function(){setModal('import');},style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',fontSize:12,padding:'4px 12px',borderRadius:6}},'[Edition]'),
         peutEditer&&peutImporter&&h('span',{style:{fontSize:11,color:'rgba(255,255,255,0.5)'}},'[Acces complet]'),
         sync&&h('span',{className:'sync'},sync),
-        nomFich&&h('span',{style:{fontSize:11,color:'rgba(255,255,255,0.45)'}},nomFich),
+        nomFich&&h('span',{style:{fontSize:11,color:'rgba(255,255,255,0.45)'},className:'mobile-hide'},nomFich),
         h('label',{style:{background:'rgba(255,255,255,0.1)',border:'1px solid rgba(255,255,255,0.2)',color:'#fff',padding:'4px 12px',borderRadius:6,fontSize:12,cursor:'pointer',display:'flex',alignItems:'center',gap:6},
           onClick:function(ev){if(!peutImporter){ev.preventDefault();setModal('import');}}},
           (lignes.length>0?'Mettre a jour ERP':'Importer ERP')+(peutImporter?'':' [verr.]'),
@@ -754,6 +774,15 @@ function App(){
             onChange:function(ev){loadFile(ev.target.files[0]);}})
         )
       )
+    ),
+    h('div',{className:'mobile-nav'},
+      [{id:'planning',l:'Planning',i:'📋'},{id:'charge',l:'ECA',i:'📊'},{id:'reporting',l:'Rapport',i:'📝'},{id:'depart',l:'Departs',i:'🚚'}].map(function(t){
+        return h('button',{key:t.id,className:vue===t.id&&!detail?'act':'',
+          onClick:function(){setVue(t.id);setDetail(null);}},
+          h('span',{style:{fontSize:18}},t.i),
+          h('span',null,t.l)
+        );
+      })
     ),
     h('main',null,
       lignes.length===0

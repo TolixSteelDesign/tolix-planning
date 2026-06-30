@@ -524,6 +524,8 @@ function VueCharge(props){
 function VueReporting(props){
   var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,onCommande=props.onCommande;
   var sr=useState(''),recherche=sr[0],setRecherche=sr[1];
+  var ss=useState('dateLiv'),triCol=ss[0],setTriCol=ss[1];
+  var sd=useState(1),triDir=sd[0],setTriDir=sd[1];
   var byCde={};
   lignes.forEach(function(l){
     var k=l.id+'||'+l.ref;
@@ -532,9 +534,17 @@ function VueReporting(props){
     byCde[l.id].lignes.push(Object.assign({},l,{peint:peint}));
     if(peint)byCde[l.id].peintes++;
   });
+  var dateKey=function(s){var p=s.split('/');return p.length===3?p[2]+p[1]+p[0]:'99999999';};
   var cmds=Object.values(byCde).sort(function(a,b){
-    var f=function(s){var p=s.split('/');return p.length===3?p[2]+p[1]+p[0]:'99999999';};
-    return f(a.dateLiv).localeCompare(f(b.dateLiv));
+    var va,vb;
+    if(triCol==='id'){va=a.id;vb=b.id;}
+    else if(triCol==='client'){va=a.client.toLowerCase();vb=b.client.toLowerCase();}
+    else if(triCol==='dateLiv'){va=dateKey(a.dateLiv);vb=dateKey(b.dateLiv);}
+    else if(triCol==='avancement'){va=a.peintes/a.lignes.length;vb=b.peintes/b.lignes.length;}
+    else{va=a.dateLiv;vb=b.dateLiv;}
+    if(va<vb)return -1*triDir;
+    if(va>vb)return 1*triDir;
+    return 0;
   });
   var cmdsFiltered=recherche
     ?cmds.filter(function(cmd){
@@ -542,6 +552,15 @@ function VueReporting(props){
         return cmd.id.toLowerCase().includes(r)||cmd.client.toLowerCase().includes(r);
       })
     :cmds;
+  function trierPar(col){
+    if(triCol===col){setTriDir(triDir*-1);}
+    else{setTriCol(col);setTriDir(1);}
+  }
+  function flecheTri(col){
+    if(triCol!==col)return '';
+    return triDir===1?' ^':' v';
+  }
+  var thStyle={cursor:'pointer',userSelect:'none'};
   return h('div',null,
     h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:12,flexWrap:'wrap'}},
       h('input',{type:'text',placeholder:'Rechercher N° commande ou client...',value:recherche,
@@ -553,10 +572,10 @@ function VueReporting(props){
     h('div',{className:'card'},
       h('table',null,
         h('thead',null,h('tr',null,
-          h('th',{style:{width:'12%'}},'N cde'),
-          h('th',{style:{width:'28%'}},'Client'),
-          h('th',{style:{width:'14%',textAlign:'center'}},'Date liv.'),
-          h('th',{style:{width:'20%',textAlign:'center'}},'Avancement'),
+          h('th',{style:Object.assign({width:'12%'},thStyle),onClick:function(){trierPar('id');}},'N cde'+flecheTri('id')),
+          h('th',{style:Object.assign({width:'28%'},thStyle),onClick:function(){trierPar('client');}},'Client'+flecheTri('client')),
+          h('th',{style:Object.assign({width:'14%',textAlign:'center'},thStyle),onClick:function(){trierPar('dateLiv');}},'Date liv.'+flecheTri('dateLiv')),
+          h('th',{style:Object.assign({width:'20%',textAlign:'center'},thStyle),onClick:function(){trierPar('avancement');}},'Avancement'+flecheTri('avancement')),
           h('th',{style:{width:'12%',textAlign:'center'}},'Lignes'),
           h('th',{style:{width:'14%',textAlign:'center'}},'Statut')
         )),

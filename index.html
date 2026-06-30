@@ -134,8 +134,18 @@ function VueDepart(props){
   var semCourante=getSemaineISO(new Date());
   var s1=useState(semCourante),semSel=s1[0],setSemSel=s1[1];
 
-  // Toutes les semaines disponibles
-  var sems=[...new Set(lignes.map(function(l){return l.semaine;}))].filter(Boolean).sort();
+  // Toutes les semaines de LIVRAISON disponibles (pas semaine de peinture)
+  var semsLivSet={};
+  lignes.forEach(function(l){
+    if(l.dateLiv&&l.dateLiv.length>=8){
+      var p=l.dateLiv.split('/');
+      if(p.length===3){
+        var d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+        semsLivSet[getSemaineISO(d)]=true;
+      }
+    }
+  });
+  var sems=Object.keys(semsLivSet).sort();
 
   // Grouper par commande pour la semaine selectionnee
   var byCde={};
@@ -378,6 +388,7 @@ function VuePlanning(props){
         h('option',{value:''},'Toutes les couleurs'),
         couleursSem.map(function(c){return h('option',{key:c,value:c},c);})),
       h('button',{onClick:function(){exportPDF(jours,semCur,maxECA);},style:{marginLeft:8,fontSize:12,padding:'5px 12px'}},'PDF')
+    ),
     ),
     importDate&&h('div',{style:{fontSize:11,color:'var(--h)',marginBottom:12}},'Import ERP : '+new Date(importDate).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})),
     h('div',{style:{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(110px,1fr))',gap:8,marginBottom:16}},

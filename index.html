@@ -72,15 +72,25 @@ async function sauvegarderStatut(key,peint){
   await sb.from('statuts').upsert({id:key,peint,updated_at:new Date().toISOString()});
 }
 async function chargerLignes(){
-  const{data,error}=await sb.from('lignes_erp').select('data,fichier,import_date').order('import_date',{ascending:false}).limit(1);
+  const{data,error}=await sb.from('lignes_erp').select('data,fichier,import_date').order('import_date',{ascending:false}).limit(2);
   if(error||!data||!data.length)return null;
   try{
     const parsed=typeof data[0].data==='string'?JSON.parse(data[0].data):data[0].data;
-    return{data:parsed,fichier:data[0].fichier,import_date:data[0].import_date};
+    var ancienIds={};
+    if(data.length>1){
+      var ancien=typeof data[1].data==='string'?JSON.parse(data[1].data):data[1].data;
+      ancien.forEach(function(l){ancienIds[l.id]=true;});
+    }
+    return{data:parsed,fichier:data[0].fichier,import_date:data[0].import_date,ancienIds:ancienIds};
   }catch(e){return null;}
 }
 async function sauvegarderLignes(lignes,fichier){
-  await sb.from('lignes_erp').delete().neq('id',0);
+  // Garder seulement le dernier import, supprimer les plus anciens
+  const{data:existing}=await sb.from('lignes_erp').select('id').order('import_date',{ascending:false});
+  if(existing&&existing.length>=2){
+    var idsToDelete=existing.slice(1).map(function(r){return r.id;});
+    await sb.from('lignes_erp').delete().in('id',idsToDelete);
+  }
   await sb.from('lignes_erp').insert({data:JSON.stringify(lignes),fichier,import_date:new Date().toISOString()});
 }
 
@@ -522,7 +532,7 @@ function VueCharge(props){
 }
 
 function VueReporting(props){
-  var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,onCommande=props.onCommande;
+  var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,onCommande=props.onCommande,ancienIds=props.ancienIds||{};
   var sr=useState(''),recherche=sr[0],setRecherche=sr[1];
   var ss=useState('dateLiv'),triCol=ss[0],setTriCol=ss[1];
   var sd=useState(1),triDir=sd[0],setTriDir=sd[1];
@@ -576,8 +586,9 @@ function VueReporting(props){
           h('th',{style:Object.assign({width:'28%'},thStyle),onClick:function(){trierPar('client');}},'Client'+flecheTri('client')),
           h('th',{style:Object.assign({width:'14%',textAlign:'center'},thStyle),onClick:function(){trierPar('dateLiv');}},'Date liv.'+flecheTri('dateLiv')),
           h('th',{style:Object.assign({width:'20%',textAlign:'center'},thStyle),onClick:function(){trierPar('avancement');}},'Avancement'+flecheTri('avancement')),
-          h('th',{style:{width:'12%',textAlign:'center'}},'Lignes'),
-          h('th',{style:{width:'14%',textAlign:'center'}},'Statut')
+          h('th',{style:{width:'10%',textAlign:'center'}},'Lignes'),
+          h('th',{style:{width:'10%',textAlign:'center'}},'Statut'),
+          h('th',{style:{width:'10%',textAlign:'center'}},'Nouveau')
         )),
         h('tbody',null,cmdsFiltered.map(function(cmd,i){
           var pct=Math.round(cmd.peintes/cmd.lignes.length*100);
@@ -595,7 +606,8 @@ function VueReporting(props){
               h('span',{style:{fontSize:11,color:'var(--h)'}},pct+'%')
             ),
             h('td',{style:{textAlign:'center',color:'var(--m)'}},cmd.peintes+'/'+cmd.lignes.length),
-            h('td',{style:{textAlign:'center'}},h('span',{className:'badge',style:{background:bg,color:col}},lbl))
+            h('td',{style:{textAlign:'center'}},h('span',{className:'badge',style:{background:bg,color:col}},lbl)),
+            h('td',{style:{textAlign:'center'}},!ancienIds[cmd.id]&&Object.keys(ancienIds).length>0?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)'}},'Nouveau'):null)
           );
         }))
       )
@@ -752,6 +764,7 @@ function App(){
         setLignes(ld.data);
         setNomFich(ld.fichier||'');
         setImportDate(ld.import_date||null);
+        setAncienIds(ld.ancienIds||{});
         setSync('Synchronise');
       }else{
         setSync('');
@@ -845,7 +858,7 @@ function App(){
             :vue==='charge'
               ?h(VueCharge,{lignes:lignes,onSem:function(s){setVue('planning');},ecaOverride:ecaOverride})
               :vue==='reporting'
-                ?h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);}})
+                ?h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);},ancienIds:ancienIds})
                 :vue==='depart'
                   ?h(VueDepart,{lignes:lignes,statuts:statuts})
                   :h(VueECA,{ecaOverride:ecaOverride,setEcaOverride:setEcaOverride,peutImporter:peutImporter,setModal:setModal})

@@ -248,7 +248,7 @@ function parseERP(rows){
   for(var i=1;i<rows.length;i++){
     var r=rows[i];
     var design=String(r[idx.design]||'').trim();
-    var qCol=idx.qtereste>=0?idx.qtereste:idx.qte;
+    var qCol=idx.qte; // Toujours utiliser QTE, jamais QTERESTE
     var qte=parseFloat(r[qCol])||0;
     if(qte<=0)continue;
     if(EXCL.some(function(x){return design.toUpperCase().includes(x);}))continue;

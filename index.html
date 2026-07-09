@@ -140,7 +140,7 @@ function exportDepartPDF(commandes,semaine){
 }
 
 function VueDepart(props){
-  var lignes=props.lignes,statuts=props.statuts;
+  var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle||function(){},peutEditer=props.peutEditer,setModal=props.setModal||function(){};
   var semCourante=getSemaineISO(new Date());
   var s1=useState(semCourante),semSel=s1[0],setSemSel=s1[1];
 
@@ -211,10 +211,11 @@ function VueDepart(props){
             ),
             h('table',null,
               h('thead',null,h('tr',null,
-                h('th',{style:{width:'45%'}},'Designation'),
-                h('th',{style:{width:'25%'}},'Couleur'),
-                h('th',{style:{width:'10%',textAlign:'center'}},'Qte'),
-                h('th',{style:{width:'20%',textAlign:'center'}},'Statut')
+                h('th',{style:{width:'40%'}},'Designation'),
+                h('th',{style:{width:'20%'}},'Couleur'),
+                h('th',{style:{width:'8%',textAlign:'center'}},'Qte'),
+                h('th',{style:{width:'12%',textAlign:'center'}},'Statut'),
+                h('th',{style:{width:'10%',textAlign:'center'}},'Peint')
               )),
               h('tbody',null,cmd.lignes.map(function(l,li){
                 return h('tr',{key:li,style:{background:l.peint?'#f0faf4':li%2===0?'#fff':'#fafaf8'}},
@@ -223,6 +224,17 @@ function VueDepart(props){
                   h('td',{style:{textAlign:'center',fontWeight:500}},l.qte),
                   h('td',{style:{textAlign:'center'}},
                     h('span',{className:'badge',style:{background:l.peint?'#e8f4ee':'#fceaea',color:l.peint?'var(--g)':'var(--r)'}},l.peint?'OK':'NOK')
+                  ),
+                  h('td',{style:{textAlign:'center'}},
+                    h('button',{onClick:function(){
+                      var key=l.id+'||'+l.ref;
+                      if(!peutEditer){setModal('edit');return;}
+                      onToggle(key);
+                    },style:{padding:'2px 10px',fontSize:11,fontWeight:500,borderRadius:99,
+                      background:l.peint?'#e8f4ee':'#fceaea',
+                      color:l.peint?'var(--g)':'var(--r)',
+                      border:'1px solid '+(l.peint?'#b8ddc8':'#f0c0c0')}},
+                      l.peint?'OK':'NOK')
                   )
                 );
               }))
@@ -865,7 +877,7 @@ function App(){
               :vue==='reporting'
                 ?h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);},ancienIds:ancienIds})
                 :vue==='depart'
-                  ?h(VueDepart,{lignes:lignes,statuts:statuts})
+                  ?h(VueDepart,{lignes:lignes,statuts:statuts,onToggle:toggle,peutEditer:peutEditer,setModal:setModal})
                   :h(VueECA,{ecaOverride:ecaOverride,setEcaOverride:setEcaOverride,peutImporter:peutImporter,setModal:setModal})
     ),
     modal==='edit'&&h(ModalMDP,{titre:'Deverrouiller OK/NOK',mdpAttendu:MDP_EDIT,onSuccess:function(){setPeutEditer(true);},onClose:function(){setModal(null);}}),

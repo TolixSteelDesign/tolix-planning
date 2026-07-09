@@ -369,14 +369,13 @@ function SC(props){
 }
 
 function VuePlanning(props){
-  var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,importDate=props.importDate,peutEditer=props.peutEditer,ecaOverride=props.ecaOverride||{},ancienIds=props.ancienIds||{},semInitiale=props.semInitiale||'';
-  var s1=useState(semInitiale),sem=s1[0],setSem=s1[1];
-  useEffect(function(){if(semInitiale)setSem(semInitiale);},[semInitiale]);
+  var lignes=props.lignes,statuts=props.statuts,onToggle=props.onToggle,importDate=props.importDate,peutEditer=props.peutEditer,ecaOverride=props.ecaOverride||{},ancienIds=props.ancienIds||{};
+  var semActive=props.semActive||'',setSemActive=props.setSemActive||function(){};
   var s2=useState(5),nbJ=s2[0],setNbJ=s2[1];
   var s3=useState(250),maxECA=s3[0],setMaxECA=s3[1];
   var s4=useState(''),filtre=s4[0],setFiltre=s4[1];
   var sems=[...new Set(lignes.map(function(l){return l.semaine;}))].filter(Boolean).sort();
-  var semCur=sem||sems[0]||'';
+  var semCur=semActive||sems[0]||'';
   var ligsAll=lignes.filter(function(l){return l.semaine===semCur;}).map(function(l){return Object.assign({},l,{peint:!!statuts[l.id+'||'+l.ref]});});
   var ligs=filtre?ligsAll.filter(function(l){return l.couleur===filtre;}):ligsAll;
   var couleursSem=[...new Set(ligsAll.map(function(l){return l.couleur;}))].sort();
@@ -388,7 +387,7 @@ function VuePlanning(props){
   var cMap={};allC.forEach(function(c,i){cMap[c]=PAL[i%PAL.length];});
 
   var controls=h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',marginBottom:16}},
-    h('select',{value:semCur,onChange:function(ev){setSem(ev.target.value);}},
+    h('select',{value:semCur,onChange:function(ev){setSemActive(ev.target.value);}},
       sems.map(function(s){return h('option',{key:s,value:s},'Semaine '+s);})),
     h('span',{style:{fontSize:12,color:'var(--h)'}},'Jours :'),
     [1,2,3,4,5].map(function(n){return h('button',{key:n,className:nbJ===n?'act':'',onClick:function(){setNbJ(n);},style:{padding:'5px 10px',minWidth:36}},n);}),
@@ -759,7 +758,7 @@ function App(){
   var s10=useState(null),modal=s10[0],setModal=s10[1];
   var s11=useState({}),ecaOverride=s11[0],setEcaOverride=s11[1];
   var s12=useState({}),ancienIds=s12[0],setAncienIds=s12[1];
-  var s13=useState(''),semInitiale=s13[0],setSemInitiale=s13[1];
+  var s13=useState(''),semActive=s13[0],setSemActive=s13[1];
   var fileRef=useRef();
 
   useEffect(function(){
@@ -860,9 +859,9 @@ function App(){
         :detail
           ?h(VueDetail,{cmdId:detail,lignes:lignes,statuts:statuts,onToggle:toggle,onBack:function(){setDetail(null);}})
           :vue==='planning'
-            ?h(VuePlanning,{lignes:lignes,statuts:statuts,onToggle:toggle,importDate:importDate,peutEditer:peutEditer,ecaOverride:ecaOverride,ancienIds:ancienIds,semInitiale:semInitiale})
+            ?h(VuePlanning,{lignes:lignes,statuts:statuts,onToggle:toggle,importDate:importDate,peutEditer:peutEditer,ecaOverride:ecaOverride,ancienIds:ancienIds,semActive:semActive,setSemActive:setSemActive})
             :vue==='charge'
-              ?h(VueCharge,{lignes:lignes,onSem:function(s){setSemInitiale(s);setVue('planning');setDetail(null);},ecaOverride:ecaOverride})
+              ?h(VueCharge,{lignes:lignes,onSem:function(s){setSemActive(s);setVue('planning');setDetail(null);},ecaOverride:ecaOverride})
               :vue==='reporting'
                 ?h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);},ancienIds:ancienIds})
                 :vue==='depart'

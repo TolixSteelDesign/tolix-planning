@@ -333,9 +333,10 @@ function exportPDF(jours,semaine,maxECA){
         if(y>270){doc.addPage();y=14;}
         doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(40,40,40);
         doc.text(l.peint?'OK':'  ',M+3,y+3.5);
-        doc.text(l.design.substring(0,45),M+10,y+3.5);
-        doc.text(''+l.qte,M+128,y+3.5);
-        doc.text(l.dateLiv,M+140,y+3.5);
+        doc.text(l.design.substring(0,35),M+10,y+3.5);
+        doc.text(l.client.substring(0,18),M+95,y+3.5);
+        doc.text(''+l.qte,M+140,y+3.5);
+        doc.text(l.dateLiv,M+150,y+3.5);
         doc.setDrawColor(220,220,220);doc.line(M,y+5,W-M,y+5);
         y+=6;
       });

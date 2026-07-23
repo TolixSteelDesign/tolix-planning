@@ -188,8 +188,16 @@ function VueDepart(props){
   return h('div',null,
     h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:20,flexWrap:'wrap'}},
       h('span',{style:{fontSize:13,fontWeight:500}},'Semaine de livraison :'),
+    h('button',{onClick:function(){
+        var idx=sems.indexOf(semSel);
+        if(idx>0)setSemSel(sems[idx-1]);
+      },style:{padding:'5px 10px',fontSize:16,minWidth:36}},'<'),
       h('select',{value:semSel,onChange:function(ev){setSemSel(ev.target.value);}},
         sems.map(function(s){return h('option',{key:s,value:s},s);})),
+    h('button',{onClick:function(){
+        var idx=sems.indexOf(semSel);
+        if(idx<sems.length-1)setSemSel(sems[idx+1]);
+      },style:{padding:'5px 10px',fontSize:16,minWidth:36}},'>'),
       h('button',{onClick:function(){exportDepartPDF(cmds,semSel);},style:{marginLeft:8,fontSize:12,padding:'5px 14px'}},'PDF departs'),
       h('span',{style:{fontSize:12,color:'var(--h)',marginLeft:8}},cmds.length+' commande(s) dont '+cmdsWeb.length+' web - semaine '+semSel)
     ),
@@ -456,8 +464,16 @@ function VuePlanning(props){
   var cMap={};allC.forEach(function(c,i){cMap[c]=PAL[i%PAL.length];});
 
   var controls=h('div',{style:{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center',marginBottom:16}},
+    h('button',{onClick:function(){
+        var idx=sems.indexOf(semCur);
+        if(idx>0)setSemActive(sems[idx-1]);
+      },style:{padding:'5px 10px',fontSize:16,minWidth:36}},'<'),
     h('select',{value:semCur,onChange:function(ev){setSemActive(ev.target.value);}},
       sems.map(function(s){return h('option',{key:s,value:s},'Semaine '+s);})),
+    h('button',{onClick:function(){
+        var idx=sems.indexOf(semCur);
+        if(idx<sems.length-1)setSemActive(sems[idx+1]);
+      },style:{padding:'5px 10px',fontSize:16,minWidth:36}},'>'),
     h('span',{style:{fontSize:12,color:'var(--h)'}},'Jours :'),
     [1,2,3,4,5].map(function(n){return h('button',{key:n,className:nbJ===n?'act':'',onClick:function(){setNbJ(n);},style:{padding:'5px 10px',minWidth:36}},n);}),
     h('span',{style:{fontSize:12,color:'var(--h)',marginLeft:8}},'Max ECA/j :'),
@@ -928,6 +944,12 @@ function App(){
   return h('div',null,
     h('header',null,
       h('span',{style:{fontSize:15,fontWeight:700,letterSpacing:'0.02em'}},'TOLIX · Peinture'),
+      h('span',{style:{
+        fontSize:13,fontWeight:600,
+        background:'rgba(255,255,255,0.15)',
+        border:'1px solid rgba(255,255,255,0.25)',
+        color:'#fff',padding:'3px 10px',borderRadius:6,marginLeft:8
+      }},getSemaineISO(new Date())),
       lignes.length>0&&h('nav',{style:{display:'flex',gap:2,marginLeft:16}},
         TABS.map(function(t){
           return h('button',{key:t.id,onClick:function(){setVue(t.id);setDetail(null);},

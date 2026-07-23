@@ -255,7 +255,7 @@ function fmt(n){const x=typeof n==='string'?parseFloat(n):n;return Number.isInte
 function parseERP(rows){
   var hdrs=rows[0].map(function(r){return String(r||'').trim().toUpperCase();});
   var col=function(k){return hdrs.indexOf(k);};
-  var idx={dateliv:col('DATELIV'),numeroc:col('NUMEROC'),nom:col('NOM'),design:col('DESIGN'),qte:col('QTE'),qtereste:col('QTERESTE'),ref:col('REFERENCE')};
+  var idx={dateliv:col('DATELIV'),numeroc:col('NUMEROC'),nom:col('NOM'),design:col('DESIGN'),qte:col('QTE'),qtereste:col('QTERESTE'),ref:col('REFERENCE'),sujet:col('SUJET')};
   var out=[];
   for(var i=1;i<rows.length;i++){
     var r=rows[i];
@@ -287,7 +287,9 @@ function parseERP(rows){
         semaine='S'+String(wn).padStart(2,'0')+'-'+String(mp.getFullYear()).slice(-2);
       }
     }
-    out.push({id:String(r[idx.numeroc]||'').trim(),client:String(r[idx.nom]||'').trim().substring(0,40),ref:String(r[idx.ref]||'').trim(),design:produit.substring(0,60),couleur:couleur.substring(0,40),qte:Math.round(qte),dateLiv,semaine});
+    var sujet=idx.sujet>=0?String(r[idx.sujet]||'').trim():'';
+    var isWeb=sujet.startsWith('#');
+    out.push({id:String(r[idx.numeroc]||'').trim(),client:String(r[idx.nom]||'').trim().substring(0,40),ref:String(r[idx.ref]||'').trim(),design:produit.substring(0,60),couleur:couleur.substring(0,40),qte:Math.round(qte),dateLiv,semaine,isWeb:isWeb,sujet:sujet});
   }
   return out;
 }
@@ -391,11 +393,15 @@ function VuePlanning(props){
   var semCur=semActive||sems[0]||'';
   var ligsAll=lignes.filter(function(l){return l.semaine===semCur;}).map(function(l){return Object.assign({},l,{peint:!!statuts[l.id+'||'+l.ref]});});
   var ligs=filtre?ligsAll.filter(function(l){return l.couleur===filtre;}):ligsAll;
+  var ligsNormales=ligs.filter(function(l){return !l.isWeb;});
+  var ligsWeb=ligs.filter(function(l){return l.isWeb;});
   var couleursSem=[...new Set(ligsAll.map(function(l){return l.couleur;}))].sort();
   var totECA=ligs.reduce(function(s,l){return s+getECA(l.ref,ecaOverride)*l.qte;},0);
+  var ecaWeb=ligsWeb.reduce(function(s,l){return s+getECA(l.ref,ecaOverride)*l.qte;},0);
+  var ecaNormal=ligsNormales.reduce(function(s,l){return s+getECA(l.ref,ecaOverride)*l.qte;},0);
   var ecaJ=nbJ>0?totECA/nbJ:0;
   var dep=ecaJ>maxECA;
-  var jours=lisser(ligs,nbJ,ecaOverride);
+  var jours=lisser(ligsNormales,nbJ,ecaOverride);
   var allC=[...new Set(lignes.map(function(l){return l.couleur;}))].sort();
   var cMap={};allC.forEach(function(c,i){cMap[c]=PAL[i%PAL.length];});
 
@@ -502,7 +508,48 @@ function VuePlanning(props){
     }));
   }
 
-  return h('div',null,controls,infoImport,statCards,chargeBar,joursList);
+  // Bloc commandes Web
+  var blocWeb=ligsWeb.length>0?h('div',{className:'card',style:{marginBottom:16,border:'2px solid #185FA5'}},
+    h('div',{style:{padding:'10px 16px',background:'#e8f0fa',borderBottom:'1px solid #c0d4f0',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+      h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+        h('span',{style:{fontSize:16}},'🌐'),
+        h('span',{style:{fontWeight:600,fontSize:15,color:'var(--u)'}},'Commandes Web — Stock'),
+        h('span',{style:{fontSize:12,color:'var(--m)',marginLeft:8}},ligsWeb.length+' ligne(s)')
+      ),
+      h('span',{style:{fontSize:13,fontWeight:500,color:'var(--u)'}},fmt(ecaWeb)+' ECA')
+    ),
+    h('table',null,
+      h('thead',null,h('tr',null,
+        h('th',{style:{width:'30%'}},'Designation'),
+        h('th',{style:{width:'20%'}},'Client'),
+        h('th',{style:{width:'15%'}},'Sujet'),
+        h('th',{style:{width:'8%',textAlign:'center'}},'Qte'),
+        h('th',{style:{width:'10%',textAlign:'center'}},'ECA'),
+        h('th',{style:{width:'12%',textAlign:'center'}},'Date liv.'),
+        h('th',{style:{width:'12%',textAlign:'center'}},'Peint')
+      )),
+      h('tbody',null,ligsWeb.map(function(l,li){
+        return (function(lkey){return h('tr',{key:li,style:{background:l.peint?'#f0faf4':li%2===0?'#fff':'#f0f4fa'}},
+          h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design},l.design),
+          h('td',{style:{color:'var(--m)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0}},l.client),
+          h('td',{style:{color:'var(--u)',fontWeight:500,fontSize:12}},l.sujet),
+          h('td',{style:{textAlign:'center',fontWeight:500}},l.qte),
+          h('td',{style:{textAlign:'center',color:'var(--h)'}},fmt(getECA(l.ref,ecaOverride)*l.qte)),
+          h('td',{style:{textAlign:'center',color:'var(--m)',fontSize:12}},l.dateLiv),
+          h('td',{style:{textAlign:'center'}},
+            h('button',{onClick:function(){onToggle(lkey);},
+              style:{padding:'2px 10px',fontSize:11,fontWeight:500,borderRadius:99,
+                background:l.peint?'#e8f4ee':'#fceaea',
+                color:l.peint?'var(--g)':'var(--r)',
+                border:'1px solid '+(l.peint?'#b8ddc8':'#f0c0c0')}},
+              l.peint?'OK':'NOK')
+          )
+        );})(l.id+'||'+l.ref);
+      }))
+    )
+  ):null;
+
+  return h('div',null,controls,infoImport,statCards,chargeBar,blocWeb,joursList);
 }
 
 function VueCharge(props){
@@ -622,7 +669,10 @@ function VueReporting(props){
             ),
             h('td',{style:{textAlign:'center',color:'var(--m)'}},cmd.peintes+'/'+cmd.lignes.length),
             h('td',{style:{textAlign:'center'}},h('span',{className:'badge',style:{background:bg,color:col}},lbl)),
-            h('td',{style:{textAlign:'center'}},!ancienIds[cmd.id]&&Object.keys(ancienIds).length>0?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)'}},'Nouveau'):null)
+            h('td',{style:{textAlign:'center'}},
+              !ancienIds[cmd.id]&&Object.keys(ancienIds).length>0?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)'}},'Nouveau'):null,
+              cmd.lignes[0]&&cmd.lignes[0].isWeb?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)',marginLeft:2}},'🌐 Web'):null
+            )
           );
         }))
       )

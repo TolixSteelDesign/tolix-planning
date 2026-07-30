@@ -347,8 +347,7 @@ function parseERP(rows){
     }
     var sujet=idx.sujet>=0?String(r[idx.sujet]||'').trim():'';
     var isWeb=sujet.startsWith('#');
-    var isSAV=sujet.toUpperCase().includes('SAV');
-    out.push({id:String(r[idx.numeroc]||'').trim(),client:String(r[idx.nom]||'').trim().substring(0,40),ref:String(r[idx.ref]||'').trim(),design:produit.substring(0,60),couleur:couleur.substring(0,40),qte:Math.round(qte),dateLiv,semaine,isWeb:isWeb,isSAV:isSAV,sujet:sujet});
+    out.push({id:String(r[idx.numeroc]||'').trim(),client:String(r[idx.nom]||'').trim().substring(0,40),ref:String(r[idx.ref]||'').trim(),design:produit.substring(0,60),couleur:couleur.substring(0,40),qte:Math.round(qte),dateLiv,semaine,isWeb:isWeb,sujet:sujet});
   }
   return out;
 }
@@ -520,10 +519,7 @@ function VuePlanning(props){
         var lignesHtml=g.lignes.map(function(l,li){
           var eu=getECA(l.ref,ecaOverride);
           return (function(lkey){return h('tr',{key:li,style:{background:l.peint?'#f0faf4':li%2===0?'#fff':'#fafaf8'}},
-            h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design+' - '+l.client},
-              l.isSAV?h('span',{style:{fontSize:9,fontWeight:700,color:'#fff',background:'#c0392b',padding:'1px 5px',borderRadius:3,marginRight:4}},'SAV'):null,
-              l.design
-            ),
+            h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design+' - '+l.client},l.design),
             h('td',{style:{color:'var(--m)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.client,className:'mobile-hide'},l.client),
             h('td',{style:{textAlign:'center',fontWeight:500}},l.qte),
             h('td',{style:{textAlign:'center',color:'var(--h)'},className:'mobile-hide'},fmt(eu*l.qte)),
@@ -603,10 +599,7 @@ function VuePlanning(props){
         return (function(lkey){return h('tr',{key:li,style:{background:l.peint?'#f0faf4':li%2===0?'#fff':'#f0f4fa'}},
           h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design},l.design),
           h('td',{style:{color:'var(--m)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0}},l.client),
-          h('td',{style:{color:'var(--t)',fontWeight:500,fontSize:12}},
-            l.isSAV?h('span',{style:{fontSize:9,fontWeight:700,color:'#fff',background:'#c0392b',padding:'1px 5px',borderRadius:3,marginRight:4}},'SAV'):null,
-            l.couleur
-          ),
+          h('td',{style:{color:'var(--t)',fontWeight:500,fontSize:12}},l.couleur),
           h('td',{style:{color:'var(--u)',fontWeight:500,fontSize:12}},l.sujet),
           h('td',{style:{textAlign:'center',fontWeight:500}},l.qte),
           h('td',{style:{textAlign:'center',color:'var(--h)'}},fmt(getECA(l.ref,ecaOverride)*l.qte)),
@@ -746,8 +739,7 @@ function VueReporting(props){
             h('td',{style:{textAlign:'center'}},h('span',{className:'badge',style:{background:bg,color:col}},lbl)),
             h('td',{style:{textAlign:'center'}},
               !ancienIds[cmd.id]&&Object.keys(ancienIds).length>0?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)'}},'Nouveau'):null,
-              cmd.lignes[0]&&cmd.lignes[0].isWeb?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)',marginLeft:2}},'🌐 Web'):null,
-              cmd.lignes.some(function(l){return l.isSAV;})?h('span',{className:'badge',style:{background:'#fceaea',color:'var(--r)',marginLeft:2,fontWeight:700}},'⚠ SAV'):null
+              cmd.lignes[0]&&cmd.lignes[0].isWeb?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)',marginLeft:2}},'🌐 Web'):null
             )
           );
         }))

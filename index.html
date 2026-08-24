@@ -353,7 +353,9 @@ function parseERP(rows){
     var sujet=idx.sujet>=0?String(r[idx.sujet]||'').trim():'';
     var isWeb=sujet.startsWith('#');
     var isSAV=sujet.toUpperCase().includes('SAV');
-    out.push({id:String(r[idx.numeroc]||'').trim(),client:String(r[idx.nom]||'').trim().substring(0,40),ref:String(r[idx.ref]||'').trim(),design:produit.substring(0,60),couleur:couleur.substring(0,40),qte:Math.round(qte),dateLiv,semaine,isWeb:isWeb,isSAV:isSAV,sujet:sujet});
+    var refBase=String(r[idx.ref]||'').trim().substring(0,13);
+    var isPortugal=REFS_PORTUGAL.indexOf(refBase)>=0;
+    out.push({id:String(r[idx.numeroc]||'').trim(),client:String(r[idx.nom]||'').trim().substring(0,40),ref:String(r[idx.ref]||'').trim(),design:produit.substring(0,60),couleur:couleur.substring(0,40),qte:Math.round(qte),dateLiv,semaine,isWeb:isWeb,isSAV:isSAV,sujet:sujet,isPortugal:isPortugal});
   }
   return out;
 }
@@ -531,6 +533,7 @@ function VuePlanning(props){
           return (function(lkey){return h('tr',{key:li,style:{background:l.peint?'#f0faf4':li%2===0?'#fff':'#fafaf8'}},
             h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design+' - '+l.client},
               l.isSAV?h('span',{style:{fontSize:9,fontWeight:700,color:'#fff',background:'#c0392b',padding:'1px 5px',borderRadius:3,marginRight:4}},'SAV'):null,
+              l.isPortugal?h('span',{style:{fontSize:9,fontWeight:700,color:'#fff',background:'#27ae60',padding:'1px 5px',borderRadius:3,marginRight:4}},'PT'):null,
               l.design
             ),
             h('td',{style:{color:'var(--m)',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.client,className:'mobile-hide'},l.client),
@@ -756,7 +759,8 @@ function VueReporting(props){
             h('td',{style:{textAlign:'center'}},
               !ancienIds[cmd.id]&&Object.keys(ancienIds).length>0?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)'}},'Nouveau'):null,
               cmd.lignes[0]&&cmd.lignes[0].isWeb?h('span',{className:'badge',style:{background:'#e8f0fa',color:'var(--u)',marginLeft:2}},'🌐 Web'):null,
-              cmd.lignes.some(function(l){return l.isSAV;})?h('span',{className:'badge',style:{background:'#fceaea',color:'var(--r)',marginLeft:2,fontWeight:700}},'⚠ SAV'):null
+              cmd.lignes.some(function(l){return l.isSAV;})?h('span',{className:'badge',style:{background:'#fceaea',color:'var(--r)',marginLeft:2,fontWeight:700}},'⚠ SAV'):null,
+              cmd.lignes.some(function(l){return l.isPortugal;})?h('span',{className:'badge',style:{background:'#e8f8f0',color:'#27ae60',marginLeft:2,fontWeight:700}},'🇵🇹 PT'):null
             )
           );
         }))
@@ -891,6 +895,154 @@ function VueECA(props){
   );
 }
 
+function exportPortugalPDF(cmds,semaine){
+  var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+  var W=210,M=14,y=24;
+  doc.setFillColor(39,174,96);doc.rect(0,0,W,18,'F');
+  doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(13);
+  doc.text('TOLIX - Commande Portugal',M,11);
+  doc.setFont('helvetica','normal');doc.setFontSize(9);
+  doc.text('Semaine livraison : '+semaine+' - '+new Date().toLocaleDateString('fr-FR'),M,17);
+  cmds.forEach(function(cmd){
+    if(y>250){doc.addPage();y=14;}
+    doc.setFillColor(232,248,240);doc.rect(M,y,W-M*2,8,'F');
+    doc.setTextColor(26,25,23);doc.setFont('helvetica','bold');doc.setFontSize(10);
+    doc.text('Cde '+cmd.id+' - '+cmd.client,M+2,y+5.5);
+    doc.setFont('helvetica','normal');doc.setFontSize(9);doc.setTextColor(80,80,80);
+    doc.text('Livraison : '+cmd.dateLiv,W-M-40,y+5.5);
+    y+=10;
+    cmd.lignes.forEach(function(l){
+      if(y>270){doc.addPage();y=14;}
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(40,40,40);
+      var txt=l.design.substring(0,40)+' / '+l.couleur+' x'+l.qte;
+      doc.text(txt,M+4,y);
+      doc.text(l.ref.substring(0,20),M+140,y);
+      doc.setDrawColor(220,220,220);doc.line(M,y+2,W-M,y+2);
+      y+=6;
+    });
+    y+=4;
+  });
+  doc.save('commande-portugal-'+semaine+'.pdf');
+}
+
+function VuePortugal(props){
+  var lignes=props.lignes,statuts=props.statuts;
+  var semCourante=getSemaineISO(new Date());
+  var s1=useState(semCourante),semSel=s1[0],setSemSel=s1[1];
+  var s2=useState({}),selection=s2[0],setSelection=s2[1];
+
+  // Semaines de livraison disponibles avec produits portugais
+  var semsSet={};
+  lignes.forEach(function(l){
+    if(!l.isPortugal)return;
+    if(l.dateLiv&&l.dateLiv.length>=8){
+      var p=l.dateLiv.split('/');
+      if(p.length===3){
+        var d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+        semsSet[getSemaineISO(d)]=true;
+      }
+    }
+  });
+  var sems=Object.keys(semsSet).sort();
+
+  // Grouper par commande pour la semaine selectionnee
+  var byCde={};
+  lignes.forEach(function(l){
+    if(!l.isPortugal)return;
+    var semLiv='';
+    if(l.dateLiv&&l.dateLiv.length>=8){
+      var p=l.dateLiv.split('/');
+      if(p.length===3){
+        var d=new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+        semLiv=getSemaineISO(d);
+      }
+    }
+    if(semLiv!==semSel)return;
+    if(!byCde[l.id])byCde[l.id]={id:l.id,client:l.client,dateLiv:l.dateLiv,lignes:[]};
+    byCde[l.id].lignes.push(l);
+  });
+  var cmds=Object.values(byCde).sort(function(a,b){
+    var f=function(s){var p=s.split('/');return p.length===3?p[2]+p[1]+p[0]:'99999999';};
+    return f(a.dateLiv).localeCompare(f(b.dateLiv));
+  });
+
+  function toggleSel(key){
+    setSelection(function(prev){return Object.assign({},prev,{[key]:!prev[key]});});
+  }
+  function toutSelectionner(){
+    var all={};
+    cmds.forEach(function(cmd){cmd.lignes.forEach(function(l){all[l.id+'||'+l.ref]=true;});});
+    setSelection(all);
+  }
+  function toutDeselectionner(){setSelection({});}
+
+  var nbSel=Object.values(selection).filter(Boolean).length;
+  var cmdsSel=cmds.map(function(cmd){
+    return Object.assign({},cmd,{lignes:cmd.lignes.filter(function(l){return selection[l.id+'||'+l.ref];})});
+  }).filter(function(cmd){return cmd.lignes.length>0;});
+
+  return h('div',null,
+    h('div',{style:{display:'flex',gap:8,alignItems:'center',marginBottom:16,flexWrap:'wrap'}},
+      h('span',{style:{fontSize:13,fontWeight:500}},'Semaine de livraison :'),
+      h('button',{onClick:function(){var idx=sems.indexOf(semSel);if(idx>0)setSemSel(sems[idx-1]);},style:{padding:'5px 10px',fontSize:16,minWidth:36}},'<'),
+      h('select',{value:semSel,onChange:function(ev){setSemSel(ev.target.value);}},
+        sems.map(function(s){return h('option',{key:s,value:s},s);})),
+      h('button',{onClick:function(){var idx=sems.indexOf(semSel);if(idx<sems.length-1)setSemSel(sems[idx+1]);},style:{padding:'5px 10px',fontSize:16,minWidth:36}},'>'),
+      h('span',{style:{fontSize:12,color:'var(--h)',marginLeft:8}},cmds.length+' commande(s) · '+cmds.reduce(function(s,c){return s+c.lignes.length;},0)+' ligne(s) Portugal'),
+      h('button',{onClick:toutSelectionner,style:{marginLeft:8,fontSize:12}},'Tout selectionner'),
+      h('button',{onClick:toutDeselectionner,style:{fontSize:12}},'Tout deselectionner'),
+      nbSel>0&&h('button',{onClick:function(){exportPortugalPDF(cmdsSel,semSel);},style:{fontSize:12,padding:'5px 14px',background:'#27ae60',color:'#fff',border:'none',borderRadius:6}},'PDF commande ('+nbSel+' lignes)')
+    ),
+    cmds.length===0
+      ?h('div',{style:{textAlign:'center',padding:'3rem',color:'var(--h)',border:'2px dashed var(--b)',borderRadius:12}},'Aucun produit Portugal cette semaine')
+      :h('div',null,cmds.map(function(cmd){
+          var nbSelCmd=cmd.lignes.filter(function(l){return selection[l.id+'||'+l.ref];}).length;
+          return h('div',{key:cmd.id,className:'card',style:{marginBottom:12,border:'2px solid #27ae60'}},
+            h('div',{style:{padding:'10px 16px',background:'#e8f8f0',borderBottom:'1px solid #b8e8cc',display:'flex',alignItems:'center',justifyContent:'space-between'}},
+              h('div',{style:{display:'flex',alignItems:'center',gap:8}},
+                h('span',{style:{fontSize:16}},'🇵🇹'),
+                h('span',{style:{fontWeight:600,fontSize:14}},'Commande '+cmd.id),
+                h('span',{style:{fontSize:13,color:'var(--m)',marginLeft:8}},cmd.client)
+              ),
+              h('div',{style:{display:'flex',alignItems:'center',gap:12}},
+                h('span',{style:{fontSize:12,color:'var(--m)'}},'Livraison : '+cmd.dateLiv),
+                h('span',{style:{fontSize:12,color:'#27ae60',fontWeight:500}},nbSelCmd+'/'+cmd.lignes.length+' selectionnees')
+              )
+            ),
+            h('table',null,
+              h('thead',null,h('tr',null,
+                h('th',{style:{width:'5%',textAlign:'center'}},''),
+                h('th',{style:{width:'30%'}},'Designation'),
+                h('th',{style:{width:'20%'}},'Couleur'),
+                h('th',{style:{width:'20%'}},'Reference'),
+                h('th',{style:{width:'8%',textAlign:'center'}},'Qte'),
+                h('th',{style:{width:'12%',textAlign:'center'}},'Date liv.'),
+                h('th',{style:{width:'8%',textAlign:'center'}},'Statut peint')
+              )),
+              h('tbody',null,cmd.lignes.map(function(l,li){
+                var key=l.id+'||'+l.ref;
+                var sel=!!selection[key];
+                var peint=!!statuts[key];
+                return (function(lkey){return h('tr',{key:li,style:{background:sel?'#f0faf4':li%2===0?'#fff':'#fafaf8'}},
+                  h('td',{style:{textAlign:'center'}},
+                    h('input',{type:'checkbox',checked:sel,onChange:function(){toggleSel(lkey);},style:{width:16,height:16,cursor:'pointer'}})
+                  ),
+                  h('td',{style:{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:0},title:l.design},l.design),
+                  h('td',{style:{fontSize:12,fontWeight:500}},l.couleur),
+                  h('td',{style:{fontFamily:'monospace',fontSize:11,color:'var(--m)'}},l.ref.substring(0,20)),
+                  h('td',{style:{textAlign:'center',fontWeight:500}},l.qte),
+                  h('td',{style:{textAlign:'center',fontSize:12,color:'var(--m)'}},l.dateLiv),
+                  h('td',{style:{textAlign:'center'}},
+                    h('span',{className:'badge',style:{background:peint?'#e8f4ee':'#fceaea',color:peint?'var(--g)':'var(--r)'}},peint?'OK':'NOK')
+                  )
+                );})(key);
+              }))
+            )
+          );
+        }))
+  );
+}
+
 function App(){
   var s0=useState([]),lignes=s0[0],setLignes=s0[1];
   var s1=useState({}),statuts=s1[0],setStatuts=s1[1];
@@ -954,7 +1106,7 @@ function App(){
     });
   },[peutEditer]);
 
-  var TABS=[{id:'planning',l:'Planning'},{id:'charge',l:'Charge ECA'},{id:'reporting',l:'Reporting'},{id:'depart',l:'Depart semaine'},{id:'eca',l:'Ref. ECA'}];
+  var TABS=[{id:'planning',l:'Planning'},{id:'charge',l:'Charge ECA'},{id:'reporting',l:'Reporting'},{id:'depart',l:'Depart semaine'},{id:'portugal',l:'Portugal'},{id:'eca',l:'Ref. ECA'}];
 
   if(loading)return h('div',{style:{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',color:'var(--h)',fontSize:14}},'Chargement...');
 
@@ -1019,6 +1171,8 @@ function App(){
                 ?h(VueReporting,{lignes:lignes,statuts:statuts,onToggle:toggle,onCommande:function(id){setDetail(id);},ancienIds:ancienIds})
                 :vue==='depart'
                   ?h(VueDepart,{lignes:lignes,statuts:statuts,onToggle:toggle,peutEditer:peutEditer,setModal:setModal})
+                  :vue==='portugal'
+                    ?h(VuePortugal,{lignes:lignes,statuts:statuts})
                   :h(VueECA,{ecaOverride:ecaOverride,setEcaOverride:setEcaOverride,peutImporter:peutImporter,setModal:setModal})
     ),
     modal==='edit'&&h(ModalMDP,{titre:'Deverrouiller OK/NOK',mdpAttendu:MDP_EDIT,onSuccess:function(){setPeutEditer(true);},onClose:function(){setModal(null);}}),

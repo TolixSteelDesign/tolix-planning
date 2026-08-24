@@ -315,6 +315,8 @@ function getECA(ref,override){
 }
 function fmt(n){const x=typeof n==='string'?parseFloat(n):n;return Number.isInteger(x)?String(x):x.toFixed(1);}
 
+var REFS_PORTUGAL=["EACAC-12145-C", "EBNAC-11249-G", "EBNAC-11435-G", "EBNAC-12039-C", "EBNAC-12040-C", "EBNIN-10905-C", "EBNIN-10906-C", "ETAAC-12037-C", "ETAAC-12038-C", "ETAIN-10903-C", "ETAIN-10904-C", "ETBAC-08559-C", "ETBAC-10895-C", "ETBAC-10896-C", "ETBAC-10897-C", "ETBAC-10898-C", "ETBAC-10899-C", "ETBAC-10907-C", "ETBAC-10908-C", "ETBAC-12043-C", "ETBAC-12044-C", "ETBAC-12045-C", "ETBAC-12045-N", "ETBAC-12046-C", "ETBAC-12046-N", "ETBAC-12047-C", "ETBAC-12047-N", "ETBAC-12048-C", "ETBAC-12049-C", "ETBAC-12049-N", "ETBAC-12077-C", "OCHAC-10978-G", "OCHAC-11438-G", "OCHAC-12033-C", "OCHAC-12036-C", "OCHAC-12041-C", "OCHIN-10900-C", "OCHIN-10901-C", "OCHIN-10902-C", "OFOAC-10979-G", "OFOAC-12034-C", "OFOAC-12035-C", "OFOAC-12042-C", "OFOIN-10630-C", "OFOIN-10632-C", "OFOIN-10634-C"];
+
 function parseERP(rows){
   var hdrs=rows[0].map(function(r){return String(r||'').trim().toUpperCase();});
   var col=function(k){return hdrs.indexOf(k);};

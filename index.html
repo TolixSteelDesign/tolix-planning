@@ -115,7 +115,43 @@ function exportDepartPDF(commandes,semaine){
   doc.text('TOLIX - Departs semaine '+semaine,M,11);
   doc.setFont('helvetica','normal');doc.setFontSize(9);
   doc.text('Imprime le '+new Date().toLocaleDateString('fr-FR'),M,17);
-  commandes.forEach(function(cmd){
+
+  // Séparer Web et normales
+  var cmdsWeb=commandes.filter(function(c){return c.lignes[0]&&c.lignes[0].isWeb;});
+  var cmdsNorm=commandes.filter(function(c){return !c.lignes[0]||!c.lignes[0].isWeb;});
+
+  // Afficher commandes Web d'abord
+  if(cmdsWeb.length>0){
+    if(y>240){doc.addPage();y=14;}
+    doc.setFillColor(26,74,122);doc.rect(M,y,W-M*2,8,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(10);
+    doc.text('COMMANDES WEB - STOCK ('+cmdsWeb.length+' commande(s))',M+2,y+5.5);
+    y+=10;
+    cmdsWeb.forEach(function(cmd){
+      if(y>250){doc.addPage();y=14;}
+      doc.setFillColor(232,240,250);doc.rect(M,y,W-M*2,8,'F');
+      doc.setTextColor(26,74,122);doc.setFont('helvetica','bold');doc.setFontSize(9);
+      doc.text('Cde '+cmd.id+' - '+cmd.client,M+2,y+5.5);
+      doc.text('Livraison : '+cmd.dateLiv,W-M-38,y+5.5);
+      y+=10;
+      cmd.lignes.forEach(function(l){
+        if(y>270){doc.addPage();y=14;}
+        doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(26,74,122);
+        var tagsPdf='[WEB:'+l.sujet+'] ';
+        if(l.isSAV)tagsPdf+='[SAV] ';
+        doc.text((l.peint?'[OK] ':'[NOK] ')+tagsPdf+l.design.substring(0,35)+' / '+l.couleur.substring(0,12)+' x'+l.qte,M+4,y);
+        doc.setDrawColor(200,215,235);doc.line(M,y+2,W-M,y+2);
+        y+=5;
+      });
+      y+=4;
+    });
+    doc.setDrawColor(26,74,122);doc.setLineWidth(0.5);doc.line(M,y,W-M,y);doc.setLineWidth(0.2);
+    y+=6;
+  }
+
+  // Commandes normales
+  var allCmds=cmdsNorm;
+  allCmds.forEach(function(cmd){
     if(y>250){doc.addPage();y=14;}
     doc.setFillColor(240,237,230);doc.rect(M,y,W-M*2,8,'F');
     doc.setTextColor(26,25,23);doc.setFont('helvetica','bold');doc.setFontSize(10);
@@ -330,8 +366,21 @@ function parseERP(rows){
     if(qte<=0)continue;
     if(EXCL.some(function(x){return design.toUpperCase().includes(x);}))continue;
     var pos=design.lastIndexOf('/ ');
-    var couleur=pos>=0?design.slice(pos+2).trim():'Sans couleur';
-    var produit=pos>0?design.slice(0,pos).trim():design;
+    var couleur, produit;
+    if(pos>=0){
+      couleur=design.slice(pos+2).trim();
+      produit=design.slice(0,pos).trim();
+    } else {
+      // Pas de '/ ' -> chercher ' - ' en dernier recours (produits Portugal)
+      var pos2=design.lastIndexOf(' - ');
+      if(pos2>=0){
+        couleur=design.slice(pos2+3).trim();
+        produit=design.slice(0,pos2).trim();
+      } else {
+        couleur='Sans couleur';
+        produit=design;
+      }
+    }
     var dateLiv='';
     var rawLiv=r[idx.dateliv];
     if(rawLiv){
@@ -380,7 +429,7 @@ function lisser(lignes,nbJ,ecaOvr){
   return jours;
 }
 
-function exportPDF(jours,semaine,maxECA){
+function exportPDF(jours,semaine,maxECA,ligsWeb){
   var doc=new window.jspdf.jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
   var W=210,M=14,y=24;
   doc.setFillColor(26,25,23);doc.rect(0,0,W,18,'F');
@@ -388,6 +437,38 @@ function exportPDF(jours,semaine,maxECA){
   doc.text('TOLIX - Planning Peinture',M,11);
   doc.setFont('helvetica','normal');doc.setFontSize(9);
   doc.text('Semaine '+semaine+' - Max '+maxECA+' ECA/j - '+new Date().toLocaleDateString('fr-FR'),M,17);
+
+  // Section commandes Web en premier si il y en a
+  if(ligsWeb&&ligsWeb.length>0){
+    if(y>240){doc.addPage();y=14;}
+    // Bandeau bleu Web
+    doc.setFillColor(26,74,122);doc.rect(M,y,W-M*2,7,'F');
+    doc.setTextColor(255,255,255);doc.setFont('helvetica','bold');doc.setFontSize(10);
+    doc.text('COMMANDES WEB (STOCK) - '+ligsWeb.length+' ligne(s)',M+2,y+5);
+    y+=9;
+    // Bordure bleue sur le côté gauche
+    doc.setDrawColor(26,74,122);
+    ligsWeb.forEach(function(l){
+      if(y>270){doc.addPage();y=14;}
+      doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(26,74,122);
+      doc.text(l.peint?'OK':'  ',M+3,y+3.5);
+      var tags='[WEB:'+l.sujet+'] ';
+      if(l.isSAV)tags+='[SAV] ';
+      doc.text(tags+l.design.substring(0,28),M+10,y+3.5);
+      doc.text(l.client.substring(0,12),M+95,y+3.5);
+      doc.text(l.couleur.substring(0,15),M+118,y+3.5);
+      doc.text(''+l.qte,M+152,y+3.5);
+      doc.text(l.dateLiv,M+160,y+3.5);
+      doc.setDrawColor(200,215,235);doc.line(M,y+5,W-M,y+5);
+      doc.setDrawColor(26,74,122);doc.line(M,y-1,M,y+5.5);
+      y+=6;
+    });
+    // Trait de séparation
+    doc.setDrawColor(26,74,122);doc.setLineWidth(0.5);doc.line(M,y+2,W-M,y+2);doc.setLineWidth(0.2);
+    y+=8;
+  }
+
+  // Section planning normal par jour
   jours.forEach(function(j){
     if(y>260){doc.addPage();y=14;}
     doc.setFillColor(240,237,230);doc.rect(M,y,W-M*2,7,'F');
@@ -404,8 +485,8 @@ function exportPDF(jours,semaine,maxECA){
         doc.setFont('helvetica','normal');doc.setFontSize(8);doc.setTextColor(40,40,40);
         doc.text(l.peint?'OK':'  ',M+3,y+3.5);
         var tags='';
-        if(l.isWeb)tags+='[WEB] ';
         if(l.isSAV)tags+='[SAV] ';
+        if(l.isPortugal)tags+='[PT] ';
         doc.text(tags+l.design.substring(0,32),M+10,y+3.5);
         doc.text(l.client.substring(0,15),M+95,y+3.5);
         doc.text(''+l.qte,M+137,y+3.5);
@@ -495,7 +576,7 @@ function VuePlanning(props){
     h('select',{value:filtre,onChange:function(ev){setFiltre(ev.target.value);},style:{marginLeft:8}},
       h('option',{value:''},'Toutes les couleurs'),
       couleursSem.map(function(c){return h('option',{key:c,value:c},c);})),
-    h('button',{onClick:function(){exportPDF(jours,semCur,maxECA);},style:{marginLeft:8,fontSize:12,padding:'5px 12px'}},'PDF')
+    h('button',{onClick:function(){exportPDF(jours,semCur,maxECA,ligsWeb);},style:{marginLeft:8,fontSize:12,padding:'5px 12px'}},'PDF')
   );
 
   var infoImport=importDate?h('div',{style:{fontSize:11,color:'var(--h)',marginBottom:12}},'Import ERP : '+new Date(importDate).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'})):null;
